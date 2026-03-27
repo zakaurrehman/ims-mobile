@@ -1,0 +1,260 @@
+// Bank Accounts settings — matches web's settings/tabs/bankAccounts.js
+// Full CRUD: bankNname, bankName, cur, swiftCode, iban, corrBank, corrBankSwift, other
+import { useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  FlatList, Modal, Alert, ActivityIndicator, ScrollView,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+import { UserAuth } from '../../../contexts/AuthContext';
+import { saveDataSettings } from '../../../shared/utils/firestore';
+import { usePermission } from '../../../shared/hooks/usePermission';
+import { useToast } from '../../../contexts/ToastContext';
+import { hapticSuccess, hapticWarning } from '../../../shared/utils/haptics';
+import AppHeader from '../../../components/AppHeader';
+import EmptyState from '../../../components/EmptyState';
+import { SETTINGS_DOCS } from '../../../constants/collections';
+
+const EMPTY_BANK = {
+  bankNname: '', bankName: '', cur: '', swiftCode: '',
+  iban: '', corrBank: '', corrBankSwift: '', other: '', deleted: false,
+};
+
+const FIELDS = [
+  { key: 'bankNname',    label: 'Account Nickname',   required: true },
+  { key: 'bankName',     label: 'Bank Name',           required: true },
+  { key: 'cur',          label: 'Currency',            required: true },
+  { key: 'swiftCode',    label: 'SWIFT Code',          required: true },
+  { key: 'iban',         label: 'IBAN / Account #',   required: true },
+  { key: 'corrBank',     label: 'Correspondent Bank',  required: true },
+  { key: 'corrBankSwift',label: 'Corresp. SWIFT',      required: true },
+  { key: 'other',        label: 'Other Info',          required: false },
+];
+
+export default function BankAccountsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const { uidCollection, settings, setSettings } = UserAuth();
+  const { canEdit, canDelete } = usePermission();
+  const { setToast } = useToast();
+  const [banks, setBanks] = useState([]);
+  const [form, setForm] = useState(EMPTY_BANK);
+  const [editing, setEditing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    const list = settings?.['Bank Account']?.['Bank Account'] || [];
+    setBanks(list.filter(x => !x.deleted));
+  }, [settings]);
+
+  const validate = () => {
+    const errs = {};
+    FIELDS.filter(f => f.required).forEach(f => {
+      if (!form[f.key]?.trim()) errs[f.key] = true;
+    });
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const saveToFirestore = async (newList) => {
+    setSaving(true);
+    const newObj = { ...settings?.['Bank Account'], 'Bank Account': newList };
+    const ok = await saveDataSettings(uidCollection, SETTINGS_DOCS.BANK_ACCOUNT, newObj);
+    if (ok) {
+      setSettings(prev => ({ ...prev, 'Bank Account': newObj }));
+      setBanks(newList.filter(x => !x.deleted));
+    } else {
+      hapticWarning();
+      setToast({ text: 'Failed to save. Please try again.', clr: 'error' });
+    }
+    setSaving(false);
+    return ok;
+  };
+
+  const handleAdd = async () => {
+    if (!validate()) return;
+    const current = settings?.['Bank Account']?.['Bank Account'] || [];
+    const ok = await saveToFirestore([...current, { ...form, id: uuidv4() }]);
+    if (ok) {
+      hapticSuccess();
+      setToast({ text: 'Bank account added.', clr: 'success' });
+      setForm(EMPTY_BANK);
+      setModalVisible(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!validate()) return;
+    const current = settings?.['Bank Account']?.['Bank Account'] || [];
+    const ok = await saveToFirestore(current.map(x => x.id === form.id ? form : x));
+    if (ok) {
+      hapticSuccess();
+      setToast({ text: 'Bank account updated.', clr: 'success' });
+      setForm(EMPTY_BANK);
+      setEditing(false);
+      setModalVisible(false);
+    }
+  };
+
+  const handleDelete = (bank) => {
+    Alert.alert('Delete Bank Account', `Remove "${bank.bankNname}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          const current = settings?.['Bank Account']?.['Bank Account'] || [];
+          const ok = await saveToFirestore(current.map(x => x.id === bank.id ? { ...x, deleted: true } : x));
+          if (ok) {
+            hapticSuccess();
+            setToast({ text: 'Bank account removed.', clr: 'success' });
+          }
+        },
+      },
+    ]);
+  };
+
+  const openAdd = () => { setForm(EMPTY_BANK); setEditing(false); setErrors({}); setModalVisible(true); };
+  const openEdit = (bank) => { setForm(bank); setEditing(true); setErrors({}); setModalVisible(true); };
+
+  const renderBank = ({ item }) => (
+    <View style={styles.bankCard}>
+      <View style={styles.bankInfo}>
+        <Text style={styles.bankNname}>{item.bankNname}</Text>
+        <Text style={styles.bankName}>{item.bankName}</Text>
+        <Text style={styles.bankDetail}>Currency: {item.cur}</Text>
+        <Text style={styles.bankDetail}>SWIFT: {item.swiftCode}</Text>
+        <Text style={styles.bankDetail} numberOfLines={1}>IBAN: {item.iban}</Text>
+      </View>
+      <View style={styles.bankActions}>
+        {canEdit && (
+          <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
+            <Ionicons name="pencil-outline" size={16} color="#0366ae" />
+          </TouchableOpacity>
+        )}
+        {canDelete && (
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
+            <Ionicons name="trash-outline" size={16} color="#dc2626" />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <AppHeader title="Bank Accounts" navigation={navigation} showBack />
+
+      <FlatList
+        data={banks}
+        windowSize={10}
+        maxToRenderPerBatch={10}
+        removeClippedSubviews={true}
+        keyExtractor={(item, i) => item.id || String(i)}
+        renderItem={renderBank}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <EmptyState icon="card-outline" title="No bank accounts yet" subtitle="Tap Add to create your first account" />
+        }
+        ListHeaderComponent={canEdit ? (
+          <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
+            <Ionicons name="add-circle-outline" size={18} color="#fff" />
+            <Text style={styles.addBtnText}>Add Bank Account</Text>
+          </TouchableOpacity>
+        ) : null}
+      />
+
+      {/* Add / Edit Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{editing ? 'Edit Bank Account' : 'Add Bank Account'}</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#103a7a" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalBody}>
+              {FIELDS.map(f => (
+                <View key={f.key} style={styles.field}>
+                  <Text style={[styles.fieldLabel, errors[f.key] && { color: '#dc2626' }]}>
+                    {f.label}{f.required ? ' *' : ''}
+                  </Text>
+                  <TextInput
+                    style={[styles.fieldInput, errors[f.key] && styles.fieldInputError]}
+                    value={form[f.key] || ''}
+                    onChangeText={v => { setForm(p => ({ ...p, [f.key]: v })); setErrors(p => ({ ...p, [f.key]: false })); }}
+                    placeholder={f.label}
+                    placeholderTextColor="#b8ddf8"
+                  />
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                onPress={editing ? handleUpdate : handleAdd}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.saveBtnText}>{editing ? 'Update' : 'Add Account'}</Text>}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#f0f8ff' },
+  list: { padding: 16, gap: 12, paddingBottom: 32 },
+  addBtn: {
+    flexDirection: 'row', backgroundColor: '#0366ae', borderRadius: 12,
+    padding: 14, alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4,
+  },
+  addBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  bankCard: {
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#b8ddf8',
+    padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+  },
+  bankInfo: { flex: 1, gap: 3 },
+  bankNname: { fontSize: 14, fontWeight: '700', color: '#103a7a' },
+  bankName: { fontSize: 13, color: '#0366ae', fontWeight: '600' },
+  bankDetail: { fontSize: 11, color: '#9fb8d4' },
+  bankActions: { flexDirection: 'row', gap: 8, marginLeft: 12 },
+  editBtn: {
+    width: 34, height: 34, borderRadius: 10, backgroundColor: '#ebf2fc',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  deleteBtn: {
+    width: 34, height: 34, borderRadius: 10, backgroundColor: '#fef2f2',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: '#e3f0fb',
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#103a7a' },
+  modalBody: { padding: 20, gap: 12, paddingBottom: 32 },
+  field: { gap: 5 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', color: '#103a7a', textTransform: 'uppercase' },
+  fieldInput: {
+    backgroundColor: '#f7fbff', borderWidth: 1, borderColor: '#b8ddf8',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#103a7a',
+  },
+  fieldInputError: { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
+  saveBtn: {
+    backgroundColor: '#0366ae', borderRadius: 999, paddingVertical: 14,
+    alignItems: 'center', marginTop: 8,
+  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+});
