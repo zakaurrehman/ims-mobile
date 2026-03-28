@@ -33,8 +33,8 @@ export function usePushNotifications(uidCollection, userId) {
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, [uidCollection, userId]);
 }

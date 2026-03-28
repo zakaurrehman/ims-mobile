@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../shared/firebase';
 import { UserAuth } from '../../contexts/AuthContext';
-import { loadData } from '../../shared/utils/firestore';
 import { formatCurrency } from '../../shared/utils/helpers';
 import AppHeader from '../../components/AppHeader';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
-import { COLLECTIONS } from '../../constants/collections';
 
 export default function CompanyExpensesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -21,8 +21,8 @@ export default function CompanyExpensesScreen({ navigation }) {
   const load = async () => {
     if (!uidCollection) return;
     try {
-      const data = await loadData(uidCollection, COLLECTIONS.COMPANY_EXPENSES);
-      setItems(data);
+      const snap = await getDocs(collection(db, uidCollection, 'data', 'companyExpenses'));
+      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error(e); setError(e.message || 'Failed to load'); }
     finally { setLoading(false); setRefreshing(false); }
   };

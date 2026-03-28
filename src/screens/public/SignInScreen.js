@@ -17,13 +17,21 @@ export default function SignInScreen({ navigation }) {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const completeUserEmail = (userName) => {
+    const u = userName.trim();
+    if (u.includes('@')) return u;
+    if (u === 'isims') return 'isims@is.is';
+    if (u === 'isgis') return 'isgis@is.is';
+    return u.slice(-3) === 'ims' ? u + '@ims-metals.com' : u + '@gismetals.com';
+  };
+
   const handleSignIn = async () => {
     if (!email || !password) {
       Alert.alert('Missing fields', 'Please enter email and password.');
       return;
     }
     setLoading(true);
-    const ok = await SignIn(email.trim(), password);
+    const ok = await SignIn(completeUserEmail(email), password);
     setLoading(false);
     // Navigation handled automatically by RootNavigator when user state changes
   };

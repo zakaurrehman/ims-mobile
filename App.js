@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthContextProvider } from './src/contexts/AuthContext';
@@ -9,15 +10,17 @@ import OfflineBanner from './src/components/OfflineBanner';
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ToastProvider>
-        <AuthContextProvider>
-          <OfflineBanner />
-          <RootNavigator />
-          <Toast />
-          <StatusBar style="dark" />
-        </AuthContextProvider>
-      </ToastProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ToastProvider>
+          <AuthContextProvider>
+            <OfflineBanner />
+            <RootNavigator />
+            <Toast />
+            <StatusBar style="dark" />
+          </AuthContextProvider>
+        </ToastProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

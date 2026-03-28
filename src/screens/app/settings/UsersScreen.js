@@ -9,9 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { db } from '../../../shared/firebase';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { UserAuth } from '../../../contexts/AuthContext';
+import { loadDataSettings, saveDataSettings } from '../../../shared/utils/firestore';
+import { SETTINGS_DOCS } from '../../../constants/collections';
 import { usePermission } from '../../../shared/hooks/usePermission';
 import { useToast } from '../../../contexts/ToastContext';
 import { hapticSuccess, hapticWarning } from '../../../shared/utils/haptics';
@@ -45,9 +45,9 @@ export default function UsersScreen({ navigation }) {
     if (!uidCollection) return;
     try {
       setError(null);
-      const col = collection(db, uidCollection, 'users');
-      const snap = await getDocs(col);
-      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const data = await loadDataSettings(uidCollection, SETTINGS_DOCS.USERS);
+      const arr = Object.entries(data || {}).map(([id, val]) => ({ id, ...val }));
+      setUsers(arr);
     } catch (e) {
       console.error('UsersScreen:', e);
       setError(e.message || 'Failed to load users');
@@ -61,16 +61,18 @@ export default function UsersScreen({ navigation }) {
 
   const onRefresh = () => { setRefreshing(true); loadUsers(); };
 
+  const persistUsers = async (updatedList) => {
+    const obj = Object.fromEntries(updatedList.map(({ id, ...rest }) => [id, rest]));
+    await saveDataSettings(uidCollection, SETTINGS_DOCS.USERS, obj);
+  };
+
   const handleSaveUser = async () => {
     if (!editUser?.id) return;
     setSaving(true);
     try {
-      const ref = doc(db, uidCollection, 'users', editUser.id);
-      await updateDoc(ref, {
-        displayName: editUser.displayName || '',
-        title: editUser.title || 'User',
-      });
-      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...editUser } : u));
+      const updated = users.map(u => u.id === editUser.id ? { ...u, displayName: editUser.displayName || '', title: editUser.title || 'User' } : u);
+      await persistUsers(updated);
+      setUsers(updated);
       setEditUser(null);
       hapticSuccess();
       setToast({ text: 'User updated.', clr: 'success' });
@@ -84,10 +86,10 @@ export default function UsersScreen({ navigation }) {
 
   const handleToggleDisabled = async (user) => {
     try {
-      const ref = doc(db, uidCollection, 'users', user.id);
       const newDisabled = !user.disabled;
-      await updateDoc(ref, { disabled: newDisabled });
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, disabled: newDisabled } : u));
+      const updated = users.map(u => u.id === user.id ? { ...u, disabled: newDisabled } : u);
+      await persistUsers(updated);
+      setUsers(updated);
       hapticSuccess();
       setToast({ text: newDisabled ? 'User disabled.' : 'User enabled.', clr: 'success' });
     } catch (e) {
@@ -102,8 +104,9 @@ export default function UsersScreen({ navigation }) {
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
           try {
-            await deleteDoc(doc(db, uidCollection, 'users', user.id));
-            setUsers(prev => prev.filter(u => u.id !== user.id));
+            const updated = users.filter(u => u.id !== user.id);
+            await persistUsers(updated);
+            setUsers(updated);
             hapticSuccess();
             setToast({ text: 'User removed.', clr: 'success' });
           } catch (e) {
@@ -165,6 +168,18 @@ export default function UsersScreen({ navigation }) {
 
   if (loading) return <Spinner />;
   if (error) return <ErrorState message={error} onRetry={() => { setLoading(true); loadUsers(); }} />;
+  if (!loading && users.length === 0) return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <AppHeader title="User Management" navigation={navigation} showBack />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <Ionicons name="people-outline" size={48} color="#b8ddf8" />
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#103a7a', marginTop: 16, textAlign: 'center' }}>User Management</Text>
+        <Text style={{ fontSize: 13, color: '#9fb8d4', marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
+          User management requires server-side access and is only available on the web app.{'\n\n'}Please use the web portal to manage users.
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>

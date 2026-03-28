@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../shared/firebase';
 import { UserAuth } from '../../contexts/AuthContext';
-import { loadData } from '../../shared/utils/firestore';
 import { formatCurrency } from '../../shared/utils/helpers';
 import AppHeader from '../../components/AppHeader';
 import Spinner from '../../components/Spinner';
 import ErrorState from '../../components/ErrorState';
-import { COLLECTIONS } from '../../constants/collections';
 
 export default function SpecialInvoicesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -22,8 +22,8 @@ export default function SpecialInvoicesScreen({ navigation }) {
     if (!uidCollection) return;
     try {
       setError(null);
-      const data = await loadData(uidCollection, COLLECTIONS.SPECIAL_INVOICES);
-      setItems(data);
+      const snap = await getDocs(collection(db, uidCollection, 'data', 'specialInvoices'));
+      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error(e); setError(e.message || 'Failed to load'); }
     finally { setLoading(false); setRefreshing(false); }
   };

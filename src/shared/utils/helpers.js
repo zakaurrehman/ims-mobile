@@ -40,9 +40,11 @@ export const filteredArray = (arr, dateSelect) => {
 };
 
 export const formatCurrency = (amount, currency = 'USD') => {
+  let safeCurrency = 'USD';
+  try { if (currency && new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(0)) safeCurrency = currency; } catch { /* invalid currency */ }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency,
+    currency: safeCurrency,
     minimumFractionDigits: 2,
   }).format(Number(amount) || 0);
 };

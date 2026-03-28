@@ -2,7 +2,7 @@
 // Matches web's EXD() pattern and PDF generation approach
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as XLSX from 'xlsx';
 import { Alert } from 'react-native';
 
@@ -44,7 +44,7 @@ export const exportToExcel = async (data, columns, filename = 'export') => {
 
     // Write to temp file
     await FileSystem.writeAsStringAsync(fileUri, xlsxData, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
     await Sharing.shareAsync(fileUri, {
