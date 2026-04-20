@@ -524,7 +524,7 @@ export default function ContractsScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Supplier or PO#..."
-            placeholderTextColor=C.text3
+            placeholderTextColor={C.text3}
             value={search}
             onChangeText={setSearch}
           />
@@ -1015,7 +1015,7 @@ export default function ContractsScreen() {
               {canEdit && !remarksEdit && (
                 <View style={styles.remarkRow}>
                   <TextInput style={[styles.formInput, { flex: 1 }]} value={remarkInput}
-                    onChangeText={setRemarkInput} placeholder="Add remark…" placeholderTextColor=C.text3 multiline />
+                    onChangeText={setRemarkInput} placeholder="Add remark…" placeholderTextColor={C.text3} multiline />
                   <TouchableOpacity onPress={saveRemark} style={[styles.remarkSaveBtn, !remarkInput.trim() && { opacity: 0.4 }]}
                     disabled={!remarkInput.trim()}>
                     <Ionicons name="add" size={16} color={C.text1} />
@@ -1068,7 +1068,7 @@ export default function ContractsScreen() {
               {canEdit && !priceRemarksEdit && (
                 <View style={styles.remarkRow}>
                   <TextInput style={[styles.formInput, { flex: 1 }]} value={priceRemarkInput}
-                    onChangeText={setPriceRemarkInput} placeholder="Add price remark…" placeholderTextColor=C.text3 multiline />
+                    onChangeText={setPriceRemarkInput} placeholder="Add price remark…" placeholderTextColor={C.text3} multiline />
                   <TouchableOpacity onPress={savePriceRemark} style={[styles.remarkSaveBtn, !priceRemarkInput.trim() && { opacity: 0.4 }]}
                     disabled={!priceRemarkInput.trim()}>
                     <Ionicons name="add" size={16} color={C.text1} />
@@ -1102,11 +1102,11 @@ export default function ContractsScreen() {
                 <View key={p.id || i} style={styles.prodTableRow}>
                   {productsEditIdx === i ? (<>
                     <TextInput style={[styles.prodInput, { flex: 3 }]} value={productsEditRow.description}
-                      onChangeText={v => setProductsEditRow(r => ({ ...r, description: v }))} placeholder="Description" placeholderTextColor=C.text3 autoFocus />
+                      onChangeText={v => setProductsEditRow(r => ({ ...r, description: v }))} placeholder="Description" placeholderTextColor={C.text3} autoFocus />
                     <TextInput style={[styles.prodInput, { flex: 1.2 }]} value={productsEditRow.qnty}
-                      onChangeText={v => setProductsEditRow(r => ({ ...r, qnty: v }))} keyboardType="numeric" placeholder="Qty" placeholderTextColor=C.text3 />
+                      onChangeText={v => setProductsEditRow(r => ({ ...r, qnty: v }))} keyboardType="numeric" placeholder="Qty" placeholderTextColor={C.text3} />
                     <TextInput style={[styles.prodInput, { flex: 1.2 }]} value={productsEditRow.unitPrc}
-                      onChangeText={v => setProductsEditRow(r => ({ ...r, unitPrc: v }))} keyboardType="numeric" placeholder="Price" placeholderTextColor=C.text3 />
+                      onChangeText={v => setProductsEditRow(r => ({ ...r, unitPrc: v }))} keyboardType="numeric" placeholder="Price" placeholderTextColor={C.text3} />
                     <TouchableOpacity style={[styles.remarkSaveBtn, { width: 32 }]} onPress={() => {
                       const updated = [...productsData];
                       updated[i] = { ...updated[i], ...productsEditRow };
@@ -1135,11 +1135,11 @@ export default function ContractsScreen() {
               {canEdit && productsEditIdx === -1 ? (
                 <View style={styles.prodTableRow}>
                   <TextInput style={[styles.prodInput, { flex: 3 }]} value={productsEditRow.description}
-                    onChangeText={v => setProductsEditRow(r => ({ ...r, description: v }))} placeholder="Description" placeholderTextColor=C.text3 autoFocus />
+                    onChangeText={v => setProductsEditRow(r => ({ ...r, description: v }))} placeholder="Description" placeholderTextColor={C.text3} autoFocus />
                   <TextInput style={[styles.prodInput, { flex: 1.2 }]} value={productsEditRow.qnty}
-                    onChangeText={v => setProductsEditRow(r => ({ ...r, qnty: v }))} keyboardType="numeric" placeholder="Qty" placeholderTextColor=C.text3 />
+                    onChangeText={v => setProductsEditRow(r => ({ ...r, qnty: v }))} keyboardType="numeric" placeholder="Qty" placeholderTextColor={C.text3} />
                   <TextInput style={[styles.prodInput, { flex: 1.2 }]} value={productsEditRow.unitPrc}
-                    onChangeText={v => setProductsEditRow(r => ({ ...r, unitPrc: v }))} keyboardType="numeric" placeholder="Price" placeholderTextColor=C.text3 />
+                    onChangeText={v => setProductsEditRow(r => ({ ...r, unitPrc: v }))} keyboardType="numeric" placeholder="Price" placeholderTextColor={C.text3} />
                   <TouchableOpacity style={[styles.remarkSaveBtn, { width: 32 }]} onPress={() => {
                     setProductsData(d => [...d, { id: uuidv4(), ...productsEditRow }]);
                     setProductsEditRow({ description: '', qnty: '', unitPrc: '' });
@@ -1180,10 +1180,10 @@ export default function ContractsScreen() {
                 <View key={p.id || i} style={styles.poInvRow}>
                   {poInvEditIdx === i ? (
                     <View style={{ gap: 6 }}>
-                      <TextInput style={styles.formInput} value={poInvEditRow.inv} onChangeText={v => setPoInvEditRow(r => ({ ...r, inv: v }))} placeholder="Invoice #" placeholderTextColor=C.text3 autoFocus />
-                      <TextInput style={styles.formInput} value={poInvEditRow.invValue} onChangeText={v => setPoInvEditRow(r => ({ ...r, invValue: v }))} placeholder="Invoice Value" placeholderTextColor=C.text3 keyboardType="numeric" />
-                      <TextInput style={styles.formInput} value={poInvEditRow.pmnt} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmnt: v }))} placeholder="Payment Amount" placeholderTextColor=C.text3 keyboardType="numeric" />
-                      <TextInput style={styles.formInput} value={poInvEditRow.pmntDate} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmntDate: v }))} placeholder="Payment Date (YYYY-MM-DD)" placeholderTextColor=C.text3 />
+                      <TextInput style={styles.formInput} value={poInvEditRow.inv} onChangeText={v => setPoInvEditRow(r => ({ ...r, inv: v }))} placeholder="Invoice #" placeholderTextColor={C.text3} autoFocus />
+                      <TextInput style={styles.formInput} value={poInvEditRow.invValue} onChangeText={v => setPoInvEditRow(r => ({ ...r, invValue: v }))} placeholder="Invoice Value" placeholderTextColor={C.text3} keyboardType="numeric" />
+                      <TextInput style={styles.formInput} value={poInvEditRow.pmnt} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmnt: v }))} placeholder="Payment Amount" placeholderTextColor={C.text3} keyboardType="numeric" />
+                      <TextInput style={styles.formInput} value={poInvEditRow.pmntDate} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmntDate: v }))} placeholder="Payment Date (YYYY-MM-DD)" placeholderTextColor={C.text3} />
                       <TouchableOpacity style={styles.saveBtn} onPress={() => {
                         const updated = [...poInvoices];
                         updated[i] = { ...updated[i], ...poInvEditRow };
@@ -1216,10 +1216,10 @@ export default function ContractsScreen() {
               ))}
               {canEdit && poInvEditIdx === -1 ? (
                 <View style={{ gap: 6 }}>
-                  <TextInput style={styles.formInput} value={poInvEditRow.inv} onChangeText={v => setPoInvEditRow(r => ({ ...r, inv: v }))} placeholder="Invoice #" placeholderTextColor=C.text3 autoFocus />
-                  <TextInput style={styles.formInput} value={poInvEditRow.invValue} onChangeText={v => setPoInvEditRow(r => ({ ...r, invValue: v }))} placeholder="Invoice Value" placeholderTextColor=C.text3 keyboardType="numeric" />
-                  <TextInput style={styles.formInput} value={poInvEditRow.pmnt} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmnt: v }))} placeholder="Payment Amount" placeholderTextColor=C.text3 keyboardType="numeric" />
-                  <TextInput style={styles.formInput} value={poInvEditRow.pmntDate} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmntDate: v }))} placeholder="Payment Date (YYYY-MM-DD)" placeholderTextColor=C.text3 />
+                  <TextInput style={styles.formInput} value={poInvEditRow.inv} onChangeText={v => setPoInvEditRow(r => ({ ...r, inv: v }))} placeholder="Invoice #" placeholderTextColor={C.text3} autoFocus />
+                  <TextInput style={styles.formInput} value={poInvEditRow.invValue} onChangeText={v => setPoInvEditRow(r => ({ ...r, invValue: v }))} placeholder="Invoice Value" placeholderTextColor={C.text3} keyboardType="numeric" />
+                  <TextInput style={styles.formInput} value={poInvEditRow.pmnt} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmnt: v }))} placeholder="Payment Amount" placeholderTextColor={C.text3} keyboardType="numeric" />
+                  <TextInput style={styles.formInput} value={poInvEditRow.pmntDate} onChangeText={v => setPoInvEditRow(r => ({ ...r, pmntDate: v }))} placeholder="Payment Date (YYYY-MM-DD)" placeholderTextColor={C.text3} />
                   <TouchableOpacity style={styles.saveBtn} onPress={() => {
                     setPoInvoices(d => [...d, { id: uuidv4(), ...poInvEditRow }]);
                     setPoInvEditRow({ inv: '', invValue: '', pmnt: '', pmntDate: '' });
@@ -1275,7 +1275,7 @@ export default function ContractsScreen() {
                                 <Text style={styles.finalFieldLabel}>Final Qty</Text>
                                 <TextInput style={styles.finalInput} value={item._finalqnty}
                                   onChangeText={v => setFinalData(d => d.map((x, j) => j === i ? { ...x, _finalqnty: v } : x))}
-                                  keyboardType="numeric" placeholder="0" placeholderTextColor=C.text3 editable={canEdit} />
+                                  keyboardType="numeric" placeholder="0" placeholderTextColor={C.text3} editable={canEdit} />
                               </View>
                               <View style={styles.finalFieldPair}>
                                 <Text style={styles.finalFieldLabel}>Advised Price</Text>
@@ -1285,7 +1285,7 @@ export default function ContractsScreen() {
                                 <Text style={styles.finalFieldLabel}>Received Price</Text>
                                 <TextInput style={styles.finalInput} value={item._unitPrcFinal}
                                   onChangeText={v => setFinalData(d => d.map((x, j) => j === i ? { ...x, _unitPrcFinal: v } : x))}
-                                  keyboardType="numeric" placeholder="0" placeholderTextColor=C.text3 editable={canEdit} />
+                                  keyboardType="numeric" placeholder="0" placeholderTextColor={C.text3} editable={canEdit} />
                               </View>
                               <View style={styles.finalFieldPair}>
                                 <Text style={styles.finalFieldLabel}>Total</Text>
@@ -1297,7 +1297,7 @@ export default function ContractsScreen() {
                                 <Text style={styles.finalFieldLabel}>Remark</Text>
                                 <TextInput style={[styles.finalInput, { flex: 2 }]} value={item._remark}
                                   onChangeText={v => setFinalData(d => d.map((x, j) => j === i ? { ...x, _remark: v } : x))}
-                                  placeholder="Remark" placeholderTextColor=C.text3 editable={canEdit} />
+                                  placeholder="Remark" placeholderTextColor={C.text3} editable={canEdit} />
                               </View>
                             </View>
                           </View>
@@ -1348,7 +1348,7 @@ function FormField({ label, value, onChangeText, multiline }) {
         value={value}
         onChangeText={onChangeText}
         placeholder={label}
-        placeholderTextColor=C.text3
+        placeholderTextColor={C.text3}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
       />
