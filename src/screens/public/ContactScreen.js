@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import C from '../../theme/colors';
 
 export default function ContactScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -8,7 +9,7 @@ export default function ContactScreen({ navigation }) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color="#0366ae" />
+          <Ionicons name="chevron-back" size={22} color={C.accent} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Contact Us</Text>
       </View>
@@ -22,7 +23,7 @@ export default function ContactScreen({ navigation }) {
         ].map((item, i) => (
           <TouchableOpacity key={i} style={styles.card} onPress={item.onPress} activeOpacity={item.onPress ? 0.7 : 1}>
             <View style={styles.iconWrap}>
-              <Ionicons name={item.icon} size={22} color="#0366ae" />
+              <Ionicons name={item.icon} size={22} color={C.accent} />
             </View>
             <View>
               <Text style={styles.cardLabel}>{item.label}</Text>
@@ -36,15 +37,15 @@ export default function ContactScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
-  header: { backgroundColor: '#e3f3ff', borderBottomWidth: 1, borderBottomColor: '#b8ddf8', paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
+  header: { backgroundColor: C.bgTertiary, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#103a7a' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: C.text1 },
   scroll: { padding: 20, gap: 16 },
-  title: { fontSize: 22, fontWeight: '800', color: '#103a7a', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#9fb8d4', marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#b8ddf8', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  iconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#ebf2fc', justifyContent: 'center', alignItems: 'center' },
-  cardLabel: { fontSize: 11, color: '#9fb8d4', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
-  cardValue: { fontSize: 14, fontWeight: '600', color: '#103a7a' },
+  title: { fontSize: 22, fontWeight: '800', color: C.text1, marginBottom: 4 },
+  subtitle: { fontSize: 14, color: C.text2, marginBottom: 8 },
+  card: { backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  iconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.bgTertiary, justifyContent: 'center', alignItems: 'center' },
+  cardLabel: { fontSize: 11, color: C.text2, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
+  cardValue: { fontSize: 14, fontWeight: '600', color: C.text1 },
 });

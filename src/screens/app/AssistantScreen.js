@@ -9,6 +9,7 @@ import { UserAuth } from '../../contexts/AuthContext';
 import { loadData } from '../../shared/utils/firestore';
 import AppHeader from '../../components/AppHeader';
 import { COLLECTIONS } from '../../constants/collections';
+import C from '../../theme/colors';
 
 const OPENAI_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
@@ -157,6 +158,8 @@ const QUICK_ACTIONS = [
   'List contracts',
   'Expense summary',
   'Pending invoices',
+  'How do I create an invoice?',
+  'How do I add a new supplier?',
 ];
 
 function TypingDots() {
@@ -189,14 +192,16 @@ function TypingDots() {
 
 export default function AssistantScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { uidCollection } = UserAuth();
-  const [messages, setMessages] = useState([
-    { id: '0', role: 'assistant', text: "Hi! I'm your IMS Assistant. Ask me anything about your contracts, invoices, or expenses." },
-  ]);
+  const { uidCollection, user } = UserAuth();
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'there';
+  const initialMsg = { id: '0', role: 'assistant', text: `Hi ${userName}! I'm your IMS Assistant. Ask me anything about your contracts, invoices, or expenses.`, ts: Date.now() };
+  const [messages, setMessages] = useState([initialMsg]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentData, setCurrentData] = useState({ contracts: [], invoices: [], expenses: [] });
   const listRef = useRef(null);
+
+  const resetChat = () => setMessages([{ ...initialMsg, ts: Date.now() }]);
 
   useEffect(() => {
     if (!uidCollection) return;
@@ -218,7 +223,7 @@ export default function AssistantScreen({ navigation }) {
     if (!msg || loading) return;
     setInput('');
 
-    const userMsg = { id: Date.now().toString(), role: 'user', text: msg };
+    const userMsg = { id: Date.now().toString(), role: 'user', text: msg, ts: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
     scrollToEnd();
@@ -250,27 +255,35 @@ export default function AssistantScreen({ navigation }) {
 
       const json = await res.json();
       const reply = json.choices?.[0]?.message?.content || 'Sorry, I could not generate a response. Please try again.';
-      setMessages(prev => [...prev, { id: Date.now().toString() + '_r', role: 'assistant', text: reply }]);
+      setMessages(prev => [...prev, { id: Date.now().toString() + '_r', role: 'assistant', text: reply, ts: Date.now() }]);
     } catch {
-      setMessages(prev => [...prev, { id: Date.now().toString() + '_e', role: 'assistant', text: 'Connection error. Please check your internet and try again.' }]);
+      setMessages(prev => [...prev, { id: Date.now().toString() + '_e', role: 'assistant', text: 'Connection error. Please check your internet and try again.', ts: Date.now() }]);
     } finally {
       setLoading(false);
       scrollToEnd();
     }
   };
 
+  const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
   const renderItem = ({ item }) => {
     if (item.role === 'user') {
       return (
-        <View style={[styles.bubble, styles.userBubble]}>
-          <Text style={[styles.bubbleText, styles.userText]}>{item.text}</Text>
+        <View style={styles.msgWrap}>
+          <View style={[styles.bubble, styles.userBubble]}>
+            <Text style={[styles.bubbleText, styles.userText]}>{item.text}</Text>
+          </View>
+          {item.ts ? <Text style={[styles.ts, styles.tsUser]}>{fmtTime(item.ts)}</Text> : null}
         </View>
       );
     }
     return (
-      <View style={[styles.bubble, styles.botBubble]}>
-        <View style={styles.botIcon}><Ionicons name="sparkles" size={14} color="#0366ae" /></View>
-        <Text style={[styles.bubbleText]}>{item.text}</Text>
+      <View style={styles.msgWrap}>
+        <View style={[styles.bubble, styles.botBubble]}>
+          <View style={styles.botIcon}><Ionicons name="sparkles" size={14} color={C.accent} /></View>
+          <Text style={[styles.bubbleText, styles.botBubbleText]}>{item.text}</Text>
+        </View>
+        {item.ts ? <Text style={styles.ts}>{fmtTime(item.ts)}</Text> : null}
       </View>
     );
   };
@@ -283,8 +296,27 @@ export default function AssistantScreen({ navigation }) {
     >
       <AppHeader title="Assistant" navigation={navigation} showBack />
 
+      {/* Data count badges + reset */}
+      <View style={styles.badgesRow}>
+        {[
+          { icon: 'document-text-outline', count: currentData.contracts.length, label: 'Contracts' },
+          { icon: 'receipt-outline', count: currentData.invoices.length, label: 'Invoices' },
+          { icon: 'wallet-outline', count: currentData.expenses.length, label: 'Expenses' },
+        ].map(b => (
+          <View key={b.label} style={styles.badge}>
+            <Ionicons name={b.icon} size={12} color={C.accent} />
+            <Text style={styles.badgeText}>{b.count} {b.label}</Text>
+          </View>
+        ))}
+        <TouchableOpacity onPress={resetChat} style={styles.resetBtn}>
+          <Ionicons name="refresh-outline" size={14} color={C.text2} />
+          <Text style={styles.resetBtnText}>Reset</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         ref={listRef}
+        style={{ flex: 1 }}
         windowSize={10}
         maxToRenderPerBatch={10}
         removeClippedSubviews={true}
@@ -295,7 +327,7 @@ export default function AssistantScreen({ navigation }) {
         onContentSizeChange={scrollToEnd}
         ListFooterComponent={loading ? (
           <View style={[styles.bubble, styles.botBubble]}>
-            <View style={styles.botIcon}><Ionicons name="sparkles" size={14} color="#0366ae" /></View>
+            <View style={styles.botIcon}><Ionicons name="sparkles" size={14} color={C.accent} /></View>
             <TypingDots />
           </View>
         ) : null}
@@ -326,13 +358,13 @@ export default function AssistantScreen({ navigation }) {
           value={input}
           onChangeText={setInput}
           placeholder="Ask about your data..."
-          placeholderTextColor="#9fb8d4"
+          placeholderTextColor={C.text3}
           onSubmitEditing={() => send()}
           returnKeyType="send"
           editable={!loading}
         />
         <TouchableOpacity style={[styles.sendBtn, loading && styles.sendBtnDisabled]} onPress={() => send()} activeOpacity={0.8} disabled={loading}>
-          <Ionicons name="send" size={18} color="#fff" />
+          <Ionicons name="send" size={18} color={C.text1} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -340,43 +372,52 @@ export default function AssistantScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 'auto', padding: 4 },
+  resetBtnText: { fontSize: 10, color: C.text2, fontWeight: '600' },
+  badgesRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.accentGlow },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgTertiary, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: C.border },
+  badgeText: { fontSize: 10, color: C.accent, fontWeight: '600' },
   list: { padding: 16, gap: 10, paddingBottom: 8 },
+  msgWrap: { gap: 2 },
   bubble: { maxWidth: '85%', padding: 12, borderRadius: 16 },
+  ts: { fontSize: 9, color: C.text2, alignSelf: 'flex-start', marginLeft: 2 },
+  tsUser: { alignSelf: 'flex-end', marginRight: 2 },
   botBubble: {
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#b8ddf8',
+    backgroundColor: C.bg2, borderWidth: 1, borderColor: C.border,
     alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-start', gap: 8,
   },
-  userBubble: { backgroundColor: '#0366ae', alignSelf: 'flex-end' },
+  userBubble: { backgroundColor: C.accent, alignSelf: 'flex-end' },
   botIcon: {
     width: 22, height: 22, borderRadius: 11,
-    backgroundColor: '#ebf2fc', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.bgTertiary, justifyContent: 'center', alignItems: 'center',
     marginTop: 1,
   },
-  bubbleText: { fontSize: 14, color: '#103a7a', flex: 1, flexWrap: 'wrap', lineHeight: 20 },
-  userText: { color: '#fff' },
+  bubbleText: { fontSize: 14, color: C.text1, flexWrap: 'wrap', lineHeight: 20 },
+  botBubbleText: { flex: 1 },
+  userText: { color: C.text1 },
   dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#9fb8d4' },
-  chipsBar: { flexGrow: 0, borderTopWidth: 1, borderTopColor: '#e3f3ff' },
-  chipsContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row' },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.text2 },
+  chipsBar: { height: 52, borderTopWidth: 1, borderTopColor: C.accentGlow },
+  chipsContent: { paddingHorizontal: 12, gap: 8, flexDirection: 'row', alignItems: 'center', height: 52 },
   chip: {
     paddingHorizontal: 12, paddingVertical: 6,
-    backgroundColor: '#ebf2fc', borderRadius: 999,
-    borderWidth: 1, borderColor: '#b8ddf8',
+    backgroundColor: C.bgTertiary, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border,
   },
-  chipText: { fontSize: 12, color: '#0366ae', fontWeight: '600' },
+  chipText: { fontSize: 12, color: C.accent, fontWeight: '600' },
   inputBar: {
-    backgroundColor: '#e3f3ff', borderTopWidth: 1, borderTopColor: '#b8ddf8',
+    backgroundColor: C.bgTertiary, borderTopWidth: 1, borderTopColor: C.border2,
     padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center',
   },
   input: {
-    flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#b8ddf8',
+    flex: 1, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.border,
     borderRadius: 24, paddingHorizontal: 16, paddingVertical: 10,
-    fontSize: 14, color: '#103a7a',
+    fontSize: 14, color: C.text1,
   },
   sendBtn: {
     width: 42, height: 42, borderRadius: 21,
-    backgroundColor: '#0366ae', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.accent, justifyContent: 'center', alignItems: 'center',
   },
-  sendBtnDisabled: { backgroundColor: '#9fb8d4' },
+  sendBtnDisabled: { backgroundColor: C.text2 },
 });

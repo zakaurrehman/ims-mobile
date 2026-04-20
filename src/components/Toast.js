@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useToast } from '../contexts/ToastContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import { radius } from '../theme/spacing';
 
 export default function Toast() {
   const { toast } = useToast();
@@ -10,12 +12,12 @@ export default function Toast() {
 
   return (
     <View style={[styles.container, isSuccess ? styles.success : styles.error]}>
-      <Ionicons
-        name={isSuccess ? 'checkmark-circle-outline' : 'close-circle-outline'}
-        size={20}
-        color={isSuccess ? '#fff' : '#dc2626'}
+      <Feather
+        name={isSuccess ? 'check-circle' : 'x-circle'}
+        size={18}
+        color={isSuccess ? colors.success : colors.danger}
       />
-      <Text style={[styles.text, !isSuccess && styles.textError]}>{toast.text}</Text>
+      <Text style={styles.text}>{toast.text}</Text>
     </View>
   );
 }
@@ -23,38 +25,35 @@ export default function Toast() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 96,
     left: 16,
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     zIndex: 9999,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   success: {
-    backgroundColor: '#0366ae',
+    backgroundColor: colors.bg2,
     borderWidth: 1,
-    borderColor: '#0255a3',
+    borderColor: colors.success,
   },
   error: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg2,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: colors.danger,
   },
   text: {
-    color: '#fff',
     fontSize: 13,
     fontWeight: '500',
+    color: colors.text1,
     flex: 1,
-  },
-  textError: {
-    color: '#dc2626',
   },
 });

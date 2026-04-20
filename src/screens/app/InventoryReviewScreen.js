@@ -9,14 +9,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { UserAuth } from '../../contexts/AuthContext';
 import { loadData, loadAllStockData } from '../../shared/utils/firestore';
-import { getName } from '../../shared/utils/helpers';
+import { getName, safeDate } from '../../shared/utils/helpers';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 import AppHeader from '../../components/AppHeader';
-import YearPicker from '../../components/YearPicker';
+import DateRangeFilter from '../../components/DateRangeFilter';
 import { exportToExcel } from '../../shared/utils/exportUtils';
 import { COLLECTIONS } from '../../constants/collections';
+import { getBottomPad } from '../../theme/spacing';
+import C from '../../theme/colors';
 
 // ─── Web's setNum logic: convert KGS/LB → MT ──────────────────────────────────
 const toMT = (value, qUnit) => {
@@ -44,11 +46,12 @@ export default function InventoryReviewScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const _cy = new Date().getFullYear();
+  const [dateRange, setDateRange] = useState({ start: `${_cy}-01-01`, end: `${_cy}-12-31` });
+  const dateSelect = dateRange;
+  const year = dateRange.start?.substring(0, 4) || String(_cy);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState({});
-
-  const dateSelect = { start: `${year}-01-01`, end: `${year}-12-31` };
 
   const fetchData = async () => {
     if (!uidCollection) return;
@@ -115,7 +118,7 @@ export default function InventoryReviewScreen({ navigation }) {
     }
   };
 
-  useEffect(() => { fetchData(); }, [uidCollection, year]);
+  useEffect(() => { fetchData(); }, [uidCollection, dateRange]);
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
@@ -145,7 +148,7 @@ export default function InventoryReviewScreen({ navigation }) {
 
   const renderItem = ({ item }) => {
     const isExp = expanded[item.id || item.order];
-    const remColor = item.remainingMT > 0 ? '#d97706' : item.remainingMT < 0 ? '#dc2626' : '#16a34a';
+    const remColor = item.remainingMT > 0 ? C.warning : item.remainingMT < 0 ? C.danger : C.success;
 
     return (
       <TouchableOpacity
@@ -158,7 +161,7 @@ export default function InventoryReviewScreen({ navigation }) {
           <View style={styles.headerLeft}>
             <Text style={styles.order}>PO# {item.order || '—'}</Text>
             <Text style={styles.supplier}>{item.supplierName}</Text>
-            <Text style={styles.date}>{item.date || ''}</Text>
+            <Text style={styles.date}>{safeDate(item.date)}</Text>
           </View>
           <View style={styles.headerRight}>
             <View style={[styles.remBadge, { backgroundColor: remColor + '18' }]}>
@@ -169,7 +172,7 @@ export default function InventoryReviewScreen({ navigation }) {
             </View>
             <Ionicons
               name={isExp ? 'chevron-up' : 'chevron-down'}
-              size={16} color="#9fb8d4"
+              size={16} color={C.text2}
             />
           </View>
         </View>
@@ -184,11 +187,11 @@ export default function InventoryReviewScreen({ navigation }) {
               </View>
               <View style={styles.stat}>
                 <Text style={styles.statLabel}>Invoiced</Text>
-                <Text style={[styles.statValue, { color: '#0366ae' }]}>{fmt(item.shippedMT)} MT</Text>
+                <Text style={[styles.statValue, { color: C.accent }]}>{fmt(item.shippedMT)} MT</Text>
               </View>
               <View style={styles.stat}>
                 <Text style={styles.statLabel}>In Stock</Text>
-                <Text style={[styles.statValue, { color: '#7c3aed' }]}>{fmt(item.stockQty)} MT</Text>
+                <Text style={[styles.statValue, { color: C.purple }]}>{fmt(item.stockQty)} MT</Text>
               </View>
             </View>
 
@@ -222,7 +225,10 @@ export default function InventoryReviewScreen({ navigation }) {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <AppHeader title="Inventory Review" navigation={navigation} showBack />
-      <YearPicker year={year} setYear={setYear} />
+      <DateRangeFilter
+        onFilterChange={({ startDate, endDate }) => setDateRange({ start: startDate, end: endDate })}
+        initialYear={_cy}
+      />
 
       {/* Summary bar */}
       <View style={styles.summary}>
@@ -232,12 +238,12 @@ export default function InventoryReviewScreen({ navigation }) {
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal,{color:'#0366ae'}]}>{totalShipped.toFixed(1)}</Text>
+          <Text style={[styles.summaryVal,{color:C.accent}]}>{totalShipped.toFixed(1)}</Text>
           <Text style={styles.summaryLabel}>Invoiced MT</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal,{color:'#d97706'}]}>{totalRemaining.toFixed(1)}</Text>
+          <Text style={[styles.summaryVal,{color:C.warning}]}>{totalRemaining.toFixed(1)}</Text>
           <Text style={styles.summaryLabel}>Remaining MT</Text>
         </View>
       </View>
@@ -245,22 +251,22 @@ export default function InventoryReviewScreen({ navigation }) {
       {/* Search + Export */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="#9fb8d4" />
+          <Ionicons name="search-outline" size={16} color={C.text2} />
           <TextInput
             style={styles.searchInput}
             placeholder="Supplier or PO#..."
-            placeholderTextColor="#b8ddf8"
+            placeholderTextColor={C.text3}
             value={search}
             onChangeText={setSearch}
           />
           {search ? (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={16} color="#9fb8d4" />
+              <Ionicons name="close-circle" size={16} color={C.text2} />
             </TouchableOpacity>
           ) : null}
         </View>
         <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-          <Ionicons name="download-outline" size={18} color="#0366ae" />
+          <Ionicons name="download-outline" size={18} color={C.accent} />
         </TouchableOpacity>
       </View>
 
@@ -270,11 +276,11 @@ export default function InventoryReviewScreen({ navigation }) {
         data={filtered}
         keyExtractor={(item, i) => item.id || String(i)}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: getBottomPad(insets) }]}
         windowSize={10}
         maxToRenderPerBatch={10}
         removeClippedSubviews={true}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0366ae" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
         ListEmptyComponent={<EmptyState icon="layers-outline" title="No inventory records found" subtitle="Try changing the year or filters" />}
       />
     </View>
@@ -282,55 +288,55 @@ export default function InventoryReviewScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
   summary: {
-    flexDirection: 'row', backgroundColor: '#fff',
+    flexDirection: 'row', backgroundColor: C.bg2,
     marginHorizontal: 12, marginBottom: 4, borderRadius: 14,
-    borderWidth: 1, borderColor: '#b8ddf8', padding: 12,
+    borderWidth: 1, borderColor: C.border, padding: 12,
   },
   summaryItem: { flex: 1, alignItems: 'center' },
-  summaryVal: { fontSize: 14, fontWeight: '800', color: '#103a7a' },
-  summaryLabel: { fontSize: 9, color: '#9fb8d4', fontWeight: '600', textTransform: 'uppercase', marginTop: 2 },
-  summaryDivider: { width: 1, backgroundColor: '#e3f0fb' },
+  summaryVal: { fontSize: 14, fontWeight: '800', color: C.text1 },
+  summaryLabel: { fontSize: 9, color: C.text2, fontWeight: '600', textTransform: 'uppercase', marginTop: 2 },
+  summaryDivider: { width: 1, backgroundColor: C.bgTertiary },
   toolbar: { flexDirection: 'row', marginHorizontal: 12, marginBottom: 4, gap: 8 },
   searchWrap: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#b8ddf8',
+    backgroundColor: C.bg2, borderWidth: 1, borderColor: C.border,
     borderRadius: 999, paddingHorizontal: 12, height: 38,
   },
-  searchInput: { flex: 1, fontSize: 13, color: '#103a7a' },
+  searchInput: { flex: 1, fontSize: 13, color: C.text1 },
   exportBtn: {
     width: 38, height: 38, borderRadius: 999,
-    backgroundColor: '#ebf2fc', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: '#b8ddf8',
+    backgroundColor: C.bgTertiary, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border,
   },
-  count: { paddingHorizontal: 16, fontSize: 11, color: '#9fb8d4', marginBottom: 4 },
+  count: { paddingHorizontal: 16, fontSize: 11, color: C.text2, marginBottom: 4 },
   list: { padding: 12, gap: 10 },
   card: {
-    backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#b8ddf8', padding: 14,
+    backgroundColor: C.bg2, borderRadius: 14,
+    borderWidth: 1, borderColor: C.border, padding: 14,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerLeft: { flex: 1, gap: 2 },
   headerRight: { alignItems: 'flex-end', gap: 6 },
-  order: { fontSize: 13, fontWeight: '700', color: '#0366ae' },
-  supplier: { fontSize: 12, fontWeight: '600', color: '#103a7a' },
-  date: { fontSize: 11, color: '#9fb8d4' },
+  order: { fontSize: 13, fontWeight: '700', color: C.accent },
+  supplier: { fontSize: 12, fontWeight: '600', color: C.text1 },
+  date: { fontSize: 11, color: C.text2 },
   remBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, alignItems: 'center' },
   remText: { fontSize: 13, fontWeight: '800' },
   remLabel: { fontSize: 8, fontWeight: '600', textTransform: 'uppercase' },
-  detail: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#f0f4f8', paddingTop: 12, gap: 10 },
+  detail: { marginTop: 12, borderTopWidth: 1, borderTopColor: C.bg1, paddingTop: 12, gap: 10 },
   statRow: { flexDirection: 'row', gap: 8 },
-  stat: { flex: 1, alignItems: 'center', backgroundColor: '#f7fbff', borderRadius: 10, padding: 8 },
-  statLabel: { fontSize: 9, color: '#9fb8d4', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
-  statValue: { fontSize: 13, fontWeight: '700', color: '#103a7a' },
+  stat: { flex: 1, alignItems: 'center', backgroundColor: C.bgSecondary, borderRadius: 10, padding: 8 },
+  statLabel: { fontSize: 9, color: C.text2, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
+  statValue: { fontSize: 13, fontWeight: '700', color: C.text1 },
   stocksWrap: { gap: 4 },
-  stocksLabel: { fontSize: 10, fontWeight: '700', color: '#9fb8d4', textTransform: 'uppercase' },
+  stocksLabel: { fontSize: 10, fontWeight: '700', color: C.text2, textTransform: 'uppercase' },
   stocksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   stockChip: {
     backgroundColor: '#7c3aed18', borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  stockChipText: { fontSize: 11, fontWeight: '600', color: '#7c3aed' },
-  empty: { textAlign: 'center', color: '#9fb8d4', marginTop: 40, fontSize: 14 },
+  stockChipText: { fontSize: 11, fontWeight: '600', color: C.purple },
+  empty: { textAlign: 'center', color: C.text2, marginTop: 40, fontSize: 14 },
 });

@@ -9,7 +9,7 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { UserAuth } from '../../contexts/AuthContext';
 import { loadData, saveDataDoc, deleteDataDoc } from '../../shared/utils/firestore';
-import { formatCurrency, getName } from '../../shared/utils/helpers';
+import { formatCurrency, getName, safeDate } from '../../shared/utils/helpers';
 import { usePermission } from '../../shared/hooks/usePermission';
 import { useToast } from '../../contexts/ToastContext';
 import { hapticSuccess, hapticWarning } from '../../shared/utils/haptics';
@@ -18,11 +18,13 @@ import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 import AppHeader from '../../components/AppHeader';
-import YearPicker from '../../components/YearPicker';
+import DateRangeFilter from '../../components/DateRangeFilter';
 import SwipeableRow from '../../components/SwipeableRow';
 import { COLLECTIONS } from '../../constants/collections';
+import { getBottomPad } from '../../theme/spacing';
+import C from '../../theme/colors';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const BLANK_EXP = {
   expense: '', date: '', supplier: '', cur: '', amount: '',
@@ -39,16 +41,16 @@ export default function ExpensesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(null);
+  const _cy = new Date().getFullYear();
+  const [dateRange, setDateRange] = useState({ start: `${_cy}-01-01`, end: `${_cy}-12-31` });
+  const dateSelect = dateRange;
+  const year = dateRange.start?.substring(0, 4) || String(_cy);
   const [paidFilter, setPaidFilter] = useState('all'); // 'all'|'paid'|'unpaid'
 
   const [detailItem, setDetailItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
   const [saving, setSaving] = useState(false);
   const [pickerState, setPickerState] = useState(null);
-
-  const dateSelect = { start: `${year}-01-01`, end: `${year}-12-31` };
 
   const fetchData = async () => {
     if (!uidCollection) return;
@@ -64,7 +66,7 @@ export default function ExpensesScreen() {
     finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { fetchData(); }, [uidCollection, year]);
+  useEffect(() => { fetchData(); }, [uidCollection, dateRange]);
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   const isPaidCheck = (item) => {
@@ -79,7 +81,6 @@ export default function ExpensesScreen() {
       if (paidFilter === 'unpaid') return !isPaidCheck(x);
       return true;
     })
-    .filter(x => selectedMonth === null || parseInt((x.date || '').substring(5, 7), 10) - 1 === selectedMonth)
     .filter(x => {
       if (!search) return true;
       const q = search.toLowerCase();
@@ -91,15 +92,28 @@ export default function ExpensesScreen() {
       );
     });
 
-  // ─── Summary totals by type ─────────────────────────────────────────────────
+  // ─── Summary totals ─────────────────────────────────────────────────────────
   const totalAmount = filtered.reduce((s, x) => s + (x.amount || 0), 0);
 
-  // Totals per expense type (web's "totals calculation table")
-  const typeTotals = filtered.reduce((acc, x) => {
-    const typeName = getName(settings, 'Expenses', x.expType, 'expType') || 'Other';
-    acc[typeName] = (acc[typeName] || 0) + (x.amount || 0);
-    return acc;
-  }, {});
+  // Summary - Unpaid (paid === '222'), grouped by supplier × currency — matches web
+  const unpaidTotals = Object.values(
+    filtered.filter(x => x.paid === '222').reduce((acc, x) => {
+      const key = `${x.supplier}||${x.cur}`;
+      if (!acc[key]) acc[key] = { supplier: x.supplier, cur: x.cur, amount: 0 };
+      acc[key].amount += x.amount || 0;
+      return acc;
+    }, {})
+  );
+
+  // Summary - All, grouped by supplier × currency — matches web
+  const allTotals = Object.values(
+    filtered.reduce((acc, x) => {
+      const key = `${x.supplier}||${x.cur}`;
+      if (!acc[key]) acc[key] = { supplier: x.supplier, cur: x.cur, amount: 0 };
+      acc[key].amount += x.amount || 0;
+      return acc;
+    }, {})
+  );
 
   // ─── Export ────────────────────────────────────────────────────────────────
   const handleExport = () => {
@@ -124,8 +138,8 @@ export default function ExpensesScreen() {
 
   // ─── Save expense ──────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!editItem.date || !editItem.amount) {
-      Alert.alert('Required', 'Date and Amount are required.');
+    if (!editItem.expense || !editItem.date || !editItem.amount || !editItem.supplier || !editItem.expType || !editItem.cur) {
+      Alert.alert('Required', 'EXP#, Date, Amount, Supplier, Type and Currency are required.');
       return;
     }
     setSaving(true);
@@ -178,41 +192,48 @@ export default function ExpensesScreen() {
   const getLabel = (settingsKey, id, nameField = 'nname') => getName(settings, settingsKey, id, nameField) || '';
 
   // ─── Render card ────────────────────────────────────────────────────────────
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item, index }) => {
     const supplierName = getName(settings, 'Supplier', item.supplier);
     const currency = getName(settings, 'Currency', item.cur, 'cur');
     const expType = getName(settings, 'Expenses', item.expType, 'expType');
     const paidLabel = getName(settings, 'ExpPmnt', item.paid, 'paid');
     const paid = isPaidCheck(item);
-    const paidColor = paid ? '#16a34a' : '#dc2626';
+    const paidColor = paid ? C.success : C.danger;
 
     return (
+      <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 40).duration(280)}>
       <SwipeableRow onDelete={() => handleDelete(item)} disabled={!canDelete}>
       <TouchableOpacity style={styles.card} onPress={() => setDetailItem(item)} activeOpacity={0.85}>
-        <View style={styles.topRow}>
-          <View style={styles.topLeft}>
-            <Text style={styles.rowNum}>EXP# {item.expense || '—'}</Text>
-            <Text style={styles.rowSupplier}>{supplierName}</Text>
-            <Text style={styles.rowDate}>{item.date || ''}</Text>
-          </View>
-          <View style={styles.topRight}>
-            <Text style={styles.rowAmount}>{formatCurrency(item.amount)}</Text>
-            <View style={[styles.badge, { backgroundColor: paidColor + '18' }]}>
-              <Text style={[styles.badgeText, { color: paidColor }]}>
-                {paidLabel || (paid ? 'Paid' : 'Unpaid')}
-              </Text>
+        <View style={[styles.accentBar, { backgroundColor: paidColor }]} />
+        <View style={styles.cardContent}>
+          <View style={styles.topRow}>
+            <View style={styles.topLeft}>
+              <Text style={styles.rowNum}>EXP# {item.expense || '—'}</Text>
+              <Text style={styles.rowSupplier}>{supplierName}</Text>
+              <Text style={styles.rowDate}>{safeDate(item.date)}</Text>
+            </View>
+            <View style={styles.topRight}>
+              <Text style={styles.rowAmount}>{formatCurrency(item.amount)}</Text>
+              <View style={[styles.badge, { backgroundColor: paidColor + '22' }]}>
+                <Text style={[styles.badgeText, { color: paidColor }]}>
+                  {paidLabel || (paid ? 'Paid' : 'Unpaid')}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.details}>
-          {item.salesInv ? <IRow label="Sales Inv" value={item.salesInv} /> : null}
-          {expType ? <IRow label="Type" value={expType} /> : null}
-          {currency ? <IRow label="Currency" value={currency} /> : null}
-          {item.comments ? <IRow label="Comments" value={item.comments} /> : null}
+          <View style={styles.divider} />
+          <View style={styles.details}>
+            {item.poSupplierOrder ? <IRow label="PO#" value={item.poSupplierOrder} /> : null}
+            {item.salesInv ? <IRow label="Sales Inv" value={item.salesInv} /> : null}
+            {expType ? <IRow label="Type" value={expType} /> : null}
+            {currency ? <IRow label="Currency" value={currency} /> : null}
+            {item.comments ? <IRow label="Comments" value={item.comments} /> : null}
+          </View>
         </View>
       </TouchableOpacity>
       </SwipeableRow>
+
+      </Animated.View>
     );
   };
 
@@ -222,7 +243,10 @@ export default function ExpensesScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <AppHeader title="Expenses" />
-      <YearPicker year={year} setYear={setYear} />
+      <DateRangeFilter
+        onFilterChange={({ startDate, endDate }) => setDateRange({ start: startDate, end: endDate })}
+        initialYear={_cy}
+      />
 
       {/* Paid filter tabs */}
       <View style={styles.tabsRow}>
@@ -233,46 +257,22 @@ export default function ExpensesScreen() {
         ))}
       </View>
 
-      {/* Month chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthScroll} contentContainerStyle={styles.monthRow}>
-        <TouchableOpacity
-          style={[styles.monthChip, selectedMonth === null && styles.monthChipActive]}
-          onPress={() => setSelectedMonth(null)}
-        >
-          <Text style={[styles.monthChipText, selectedMonth === null && styles.monthChipTextActive]}>All</Text>
-        </TouchableOpacity>
-        {MONTHS.map((m, i) => (
-          <TouchableOpacity key={i}
-            style={[styles.monthChip, selectedMonth === i && styles.monthChipActive]}
-            onPress={() => setSelectedMonth(selectedMonth === i ? null : i)}
-          >
-            <Text style={[styles.monthChipText, selectedMonth === i && styles.monthChipTextActive]}>{m}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       {/* Search + Export + Add */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="#9fb8d4" />
+          <Ionicons name="search-outline" size={16} color={C.text2} />
           <TextInput
             style={styles.searchInput}
             placeholder="Supplier, EXP#..."
-            placeholderTextColor="#b8ddf8"
+            placeholderTextColor={C.text3}
             value={search}
             onChangeText={setSearch}
           />
-          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={16} color="#9fb8d4" /></TouchableOpacity> : null}
+          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={16} color={C.text2} /></TouchableOpacity> : null}
         </View>
         <TouchableOpacity style={styles.iconBtn} onPress={handleExport}>
-          <Ionicons name="download-outline" size={18} color="#0366ae" />
+          <Ionicons name="download-outline" size={18} color={C.text2} />
         </TouchableOpacity>
-        {canEdit && (
-          <TouchableOpacity style={[styles.iconBtn, { backgroundColor: '#0366ae', borderColor: '#0366ae' }]}
-            onPress={() => setEditItem({ ...BLANK_EXP, date: `${year}-01-01` })}>
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Summary bar */}
@@ -282,48 +282,63 @@ export default function ExpensesScreen() {
       </View>
 
       <FlatList
+        style={{ flex: 1 }}
         data={filtered}
         keyExtractor={(item, i) => item.id || String(i)}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: getBottomPad(insets) + (canEdit ? 80 : 0) }]}
         windowSize={10}
         maxToRenderPerBatch={10}
         removeClippedSubviews={true}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0366ae" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
         ListEmptyComponent={<EmptyState icon="wallet-outline" title="No expenses found" subtitle="Try changing the year or filters" />}
         ListFooterComponent={
-          Object.keys(typeTotals).length > 0 ? (
-            <View style={styles.totalsTable}>
-              <Text style={styles.totalsTitle}>Totals by Type</Text>
-              {Object.entries(typeTotals).map(([type, total]) => (
-                <View key={type} style={styles.totalsRow}>
-                  <Text style={styles.totalsType}>{type}</Text>
-                  <Text style={styles.totalsValue}>{formatCurrency(total)}</Text>
-                </View>
-              ))}
-              <View style={[styles.totalsRow, styles.totalsTotalRow]}>
-                <Text style={styles.totalsTotalLabel}>Total</Text>
-                <Text style={styles.totalsTotalValue}>{formatCurrency(totalAmount)}</Text>
-              </View>
+          (unpaidTotals.length > 0 || allTotals.length > 0) ? (
+            <View style={{ gap: 10, paddingHorizontal: 12, paddingBottom: 4 }}>
+              {unpaidTotals.length > 0 && (
+                <SummaryTable
+                  title="Summary — Unpaid"
+                  rows={unpaidTotals}
+                  settings={settings}
+                />
+              )}
+              {allTotals.length > 0 && (
+                <SummaryTable
+                  title="Summary"
+                  rows={allTotals}
+                  settings={settings}
+                />
+              )}
             </View>
           ) : null
         }
       />
 
+      {canEdit && (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: getBottomPad(insets) + 16 }]}
+          onPress={() => setEditItem({ ...BLANK_EXP, date: `${year}-01-01` })}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="add" size={26} color={C.text1} />
+        </TouchableOpacity>
+      )}
+
       {/* ─── Detail Modal ─────────────────────────────────────────────────── */}
       <Modal visible={!!detailItem} animationType="slide" transparent onRequestClose={() => setDetailItem(null)}>
         <View style={styles.overlay}>
           <View style={styles.modal}>
+            <View style={styles.handle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>EXP# {detailItem?.expense || '—'}</Text>
               <TouchableOpacity onPress={() => setDetailItem(null)}>
-                <Ionicons name="close" size={22} color="#103a7a" />
+                <Ionicons name="close" size={22} color={C.text1} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalBody}>
               {detailItem && (<>
                 <DRow label="Supplier" value={getName(settings, 'Supplier', detailItem.supplier)} />
-                <DRow label="Date" value={detailItem.date} />
+                <DRow label="Date" value={safeDate(detailItem.date)} />
                 <DRow label="Amount" value={formatCurrency(detailItem.amount)} />
                 <DRow label="Currency" value={getName(settings, 'Currency', detailItem.cur, 'cur')} />
                 <DRow label="Type" value={getName(settings, 'Expenses', detailItem.expType, 'expType')} />
@@ -334,17 +349,17 @@ export default function ExpensesScreen() {
 
                 <View style={styles.actionRow}>
                   {canEdit && (
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#ebf2fc' }]}
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.bgTertiary }]}
                       onPress={() => { setDetailItem(null); setEditItem({ ...detailItem, amount: String(detailItem.amount) }); }}>
-                      <Ionicons name="pencil-outline" size={16} color="#0366ae" />
-                      <Text style={[styles.actionBtnText, { color: '#0366ae' }]}>Edit</Text>
+                      <Ionicons name="pencil-outline" size={16} color={C.accent} />
+                      <Text style={[styles.actionBtnText, { color: C.accent }]}>Edit</Text>
                     </TouchableOpacity>
                   )}
                   {canDelete && (
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#fef2f2' }]}
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: C.dangerDim }]}
                       onPress={() => handleDelete(detailItem)}>
-                      <Ionicons name="trash-outline" size={16} color="#dc2626" />
-                      <Text style={[styles.actionBtnText, { color: '#dc2626' }]}>Delete</Text>
+                      <Ionicons name="trash-outline" size={16} color={C.danger} />
+                      <Text style={[styles.actionBtnText, { color: C.danger }]}>Delete</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -358,10 +373,11 @@ export default function ExpensesScreen() {
       <Modal visible={!!editItem} animationType="slide" transparent onRequestClose={() => setEditItem(null)}>
         <View style={styles.overlay}>
           <View style={styles.modal}>
+            <View style={styles.handle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editItem?.id ? 'Edit Expense' : 'New Expense'}</Text>
               <TouchableOpacity onPress={() => setEditItem(null)}>
-                <Ionicons name="close" size={22} color="#103a7a" />
+                <Ionicons name="close" size={22} color={C.text1} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalBody}>
@@ -383,7 +399,7 @@ export default function ExpensesScreen() {
                   disabled={saving}
                 >
                   {saving
-                    ? <ActivityIndicator color="#fff" size="small" />
+                    ? <ActivityIndicator color={C.text1} size="small" />
                     : <Text style={styles.saveBtnText}>{editItem?.id ? 'Update' : 'Add Expense'}</Text>}
                 </TouchableOpacity>
               </>)}
@@ -399,7 +415,7 @@ export default function ExpensesScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{pickerState?.title}</Text>
               <TouchableOpacity onPress={() => setPickerState(null)}>
-                <Ionicons name="close" size={22} color="#103a7a" />
+                <Ionicons name="close" size={22} color={C.text1} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -421,6 +437,28 @@ export default function ExpensesScreen() {
   );
 }
 
+function SummaryTable({ title, rows, settings }) {
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  return (
+    <View style={styles.totalsTable}>
+      <Text style={styles.totalsTitle}>{title}</Text>
+      {rows.map((r, i) => (
+        <View key={i} style={styles.totalsRow}>
+          <Text style={styles.totalsType}>{getName(settings, 'Supplier', r.supplier)}</Text>
+          <Text style={styles.totalsValue}>
+            {getName(settings, 'Currency', r.cur, 'cur') || r.cur}{'  '}
+            {formatCurrency(r.amount)}
+          </Text>
+        </View>
+      ))}
+      <View style={[styles.totalsRow, styles.totalsTotalRow]}>
+        <Text style={styles.totalsTotalLabel}>Total</Text>
+        <Text style={styles.totalsTotalValue}>{formatCurrency(total)}</Text>
+      </View>
+    </View>
+  );
+}
+
 function IRow({ label, value }) {
   if (!value) return null;
   return (
@@ -433,10 +471,12 @@ function IRow({ label, value }) {
 
 function DRow({ label, value, valueColor }) {
   if (!value) return null;
+  const safe = typeof value === 'object' ? (value.id || value.rmrk || '') : value;
+  if (!safe) return null;
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={[styles.detailValue, valueColor && { color: valueColor }]}>{value}</Text>
+      <Text style={[styles.detailValue, valueColor && { color: valueColor }]}>{safe}</Text>
     </View>
   );
 }
@@ -450,7 +490,7 @@ function EField({ label, value, onChangeText, multiline, keyboardType }) {
         value={value}
         onChangeText={onChangeText}
         placeholder={label}
-        placeholderTextColor="#b8ddf8"
+        placeholderTextColor={C.text3}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         keyboardType={keyboardType || 'default'}
@@ -464,80 +504,92 @@ function EPicker({ label, value, onPress }) {
     <View style={styles.formField}>
       <Text style={styles.formLabel}>{label}</Text>
       <TouchableOpacity style={styles.pickerBtn} onPress={onPress}>
-        <Text style={[styles.pickerBtnText, !value && { color: '#b8ddf8' }]}>{value || `Select ${label}`}</Text>
-        <Ionicons name="chevron-down" size={16} color="#9fb8d4" />
+        <Text style={[styles.pickerBtnText, !value && { color: C.text3 }]}>{value || `Select ${label}`}</Text>
+        <Ionicons name="chevron-down" size={16} color={C.text2} />
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
-  tabsRow: { flexDirection: 'row', marginHorizontal: 12, marginBottom: 6, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#b8ddf8', overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
+  tabsRow: { flexDirection: 'row', marginHorizontal: 12, marginBottom: 6, backgroundColor: C.bg2, borderRadius: 10, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center' },
-  tabActive: { backgroundColor: '#0366ae' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#0366ae' },
-  tabTextActive: { color: '#fff' },
-  monthScroll: { marginHorizontal: 12, marginBottom: 6 },
-  monthRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
-  monthChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: '#b8ddf8' },
-  monthChipActive: { backgroundColor: '#0366ae', borderColor: '#0366ae' },
-  monthChipText: { fontSize: 11, fontWeight: '600', color: '#0366ae' },
-  monthChipTextActive: { color: '#fff' },
+  tabActive: { backgroundColor: C.accent },
+  tabText: { fontSize: 12, fontWeight: '600', color: C.accent },
+  tabTextActive: { color: C.text1 },
+  monthScroll: { marginHorizontal: 12, marginBottom: 6, flexGrow: 0 },
+  monthRow: { flexDirection: 'row', gap: 6, paddingVertical: 2, alignItems: 'center' },
+  monthChip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.border },
+  monthChipActive: { backgroundColor: C.accent, borderColor: C.accent },
+  monthChipText: { fontSize: 11, fontWeight: '600', color: C.accent },
+  monthChipTextActive: { color: C.text1 },
   toolbar: { flexDirection: 'row', marginHorizontal: 12, marginBottom: 4, gap: 8 },
-  searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderWidth: 1, borderColor: '#b8ddf8', borderRadius: 999, paddingHorizontal: 12, height: 38 },
-  searchInput: { flex: 1, fontSize: 13, color: '#103a7a' },
-  iconBtn: { width: 38, height: 38, borderRadius: 999, backgroundColor: '#ebf2fc', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#b8ddf8' },
+  searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 12, height: 38 },
+  searchInput: { flex: 1, fontSize: 13, color: C.text1 },
+  iconBtn: { width: 38, height: 38, borderRadius: 999, backgroundColor: C.bgTertiary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.border },
   summaryBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 4 },
-  count: { fontSize: 11, color: '#9fb8d4' },
-  totalAmount: { fontSize: 12, fontWeight: '700', color: '#dc2626' },
+  count: { fontSize: 11, color: C.text2 },
+  totalAmount: { fontSize: 12, fontWeight: '700', color: C.danger },
   list: { padding: 12, gap: 10 },
-  card: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#b8ddf8', padding: 14 },
+  card: { backgroundColor: C.bg1, borderRadius: 14, borderWidth: 1, borderColor: C.border, flexDirection: 'row', overflow: 'hidden' },
+  accentBar: { width: 3 },
+  cardContent: { flex: 1, padding: 14 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   topLeft: { flex: 1, marginRight: 12 },
   topRight: { alignItems: 'flex-end', gap: 4 },
-  rowNum: { fontSize: 13, fontWeight: '700', color: '#0366ae', marginBottom: 2 },
-  rowSupplier: { fontSize: 12, fontWeight: '600', color: '#103a7a', marginBottom: 2 },
-  rowDate: { fontSize: 11, color: '#9fb8d4' },
-  rowAmount: { fontSize: 13, fontWeight: '700', color: '#103a7a' },
+  rowNum: { fontSize: 13, fontWeight: '700', color: C.accent, marginBottom: 2 },
+  rowSupplier: { fontSize: 12, fontWeight: '600', color: C.text1, marginBottom: 2 },
+  rowDate: { fontSize: 11, color: C.text2 },
+  rowAmount: { fontSize: 13, fontWeight: '700', color: C.text1 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
   badgeText: { fontSize: 10, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: '#f0f4f8', marginVertical: 8 },
+  divider: { height: 1, backgroundColor: C.border, marginVertical: 8 },
   details: { gap: 5 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  infoLabel: { fontSize: 10, color: '#9fb8d4', fontWeight: '600', textTransform: 'uppercase' },
-  infoValue: { fontSize: 11, color: '#103a7a', fontWeight: '500', flexShrink: 1, textAlign: 'right', marginLeft: 8 },
+  infoLabel: { fontSize: 10, color: C.text2, fontWeight: '600', textTransform: 'uppercase' },
+  infoValue: { fontSize: 11, color: C.text1, fontWeight: '500', flexShrink: 1, textAlign: 'right', marginLeft: 8 },
 
   // Totals table
-  totalsTable: { margin: 12, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#b8ddf8', padding: 14 },
-  totalsTitle: { fontSize: 12, fontWeight: '700', color: '#103a7a', marginBottom: 8, textTransform: 'uppercase' },
-  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f0f8ff' },
-  totalsType: { fontSize: 12, color: '#9fb8d4' },
-  totalsValue: { fontSize: 12, fontWeight: '600', color: '#103a7a' },
-  totalsTotalRow: { borderBottomWidth: 0, marginTop: 4, borderTopWidth: 1, borderTopColor: '#b8ddf8' },
-  totalsTotalLabel: { fontSize: 13, fontWeight: '700', color: '#103a7a' },
-  totalsTotalValue: { fontSize: 13, fontWeight: '800', color: '#dc2626' },
+  totalsTable: { margin: 12, backgroundColor: C.bg2, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 14 },
+  totalsTitle: { fontSize: 12, fontWeight: '700', color: C.text1, marginBottom: 8, textTransform: 'uppercase' },
+  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.border },
+  totalsType: { fontSize: 12, color: C.text2 },
+  totalsValue: { fontSize: 12, fontWeight: '600', color: C.text1 },
+  totalsTotalRow: { borderBottomWidth: 0, marginTop: 4, borderTopWidth: 1, borderTopColor: C.text3 },
+  totalsTotalLabel: { fontSize: 13, fontWeight: '700', color: C.text1 },
+  totalsTotalValue: { fontSize: 13, fontWeight: '800', color: C.danger },
 
-  empty: { textAlign: 'center', color: '#9fb8d4', marginTop: 40, fontSize: 14 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#e3f0fb' },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#103a7a' },
+  empty: { textAlign: 'center', color: C.text2, marginTop: 40, fontSize: 14 },
+  fab: {
+    position: 'absolute', right: 20,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: C.accent,
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: C.accent, shadowOpacity: 0.4,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  handle: { width: 36, height: 4, backgroundColor: C.border2, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 2 },
+  overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
+  modal: { backgroundColor: C.bg1, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: C.border },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: C.text1 },
   modalBody: { padding: 20, gap: 10, paddingBottom: 32 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f0f8ff' },
-  detailLabel: { fontSize: 12, color: '#9fb8d4', flex: 1 },
-  detailValue: { fontSize: 12, fontWeight: '600', color: '#103a7a', flex: 2, textAlign: 'right' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
+  detailLabel: { fontSize: 12, color: C.text2, flex: 1 },
+  detailValue: { fontSize: 12, fontWeight: '600', color: C.text1, flex: 2, textAlign: 'right' },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   actionBtnText: { fontSize: 12, fontWeight: '600' },
   formField: { gap: 4 },
-  formLabel: { fontSize: 11, fontWeight: '700', color: '#103a7a', textTransform: 'uppercase' },
-  formInput: { backgroundColor: '#f7fbff', borderWidth: 1, borderColor: '#b8ddf8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#103a7a' },
+  formLabel: { fontSize: 11, fontWeight: '700', color: C.text1, textTransform: 'uppercase' },
+  formInput: { backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: C.text1 },
   formInputMulti: { height: 80, textAlignVertical: 'top' },
-  pickerBtn: { backgroundColor: '#f7fbff', borderWidth: 1, borderColor: '#b8ddf8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pickerBtnText: { fontSize: 14, color: '#103a7a' },
-  pickerItem: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f8ff' },
-  pickerItemText: { fontSize: 14, color: '#103a7a' },
-  saveBtn: { backgroundColor: '#0366ae', borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  pickerBtn: { backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pickerBtnText: { fontSize: 14, color: C.text1 },
+  pickerItem: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickerItemText: { fontSize: 14, color: C.text1 },
+  saveBtn: { backgroundColor: C.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  saveBtnText: { color: C.text1, fontSize: 15, fontWeight: '700' },
 });

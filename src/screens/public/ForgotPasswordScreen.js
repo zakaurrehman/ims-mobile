@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../shared/firebase';
 import Spinner from '../../components/Spinner';
+import C from '../../theme/colors';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -53,7 +54,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={20} color="#0366ae" />
+          <Ionicons name="chevron-back" size={20} color={C.accent} />
           <Text style={styles.backText}>Sign In</Text>
         </TouchableOpacity>
 
@@ -66,7 +67,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         <View style={styles.form}>
           {sent ? (
             <View style={styles.successBox}>
-              <Ionicons name="checkmark-circle-outline" size={48} color="#16a34a" />
+              <Ionicons name="checkmark-circle-outline" size={48} color={C.success} />
               <Text style={styles.successTitle}>Email Sent!</Text>
               <Text style={styles.successText}>
                 A password reset link has been sent to {email.trim()}.{'\n'}Check your inbox and follow the instructions.
@@ -80,11 +81,11 @@ export default function ForgotPasswordScreen({ navigation }) {
               <View style={styles.fieldWrap}>
                 <Text style={styles.label}>Email Address</Text>
                 <View style={styles.inputWrap}>
-                  <Ionicons name="mail-outline" size={18} color="#9fb8d4" style={styles.inputIcon} />
+                  <Ionicons name="mail-outline" size={18} color={C.text2} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="you@example.com"
-                    placeholderTextColor="#b8ddf8"
+                    placeholderTextColor={C.text3}
                     value={email}
                     onChangeText={v => { setEmail(v); setError(null); }}
                     autoCapitalize="none"
@@ -96,7 +97,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
               {error ? (
                 <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle-outline" size={16} color="#dc2626" />
+                  <Ionicons name="alert-circle-outline" size={16} color={C.danger} />
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : null}
@@ -106,7 +107,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 onPress={handleReset}
                 disabled={loading}
               >
-                {loading ? <Spinner size="small" color="#fff" /> : <Text style={styles.submitText}>Send Reset Link</Text>}
+                {loading ? <Spinner size="small" color={C.text1} /> : <Text style={styles.submitText}>Send Reset Link</Text>}
               </TouchableOpacity>
             </>
           )}
@@ -117,47 +118,47 @@ export default function ForgotPasswordScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
   scroll: { padding: 24, flexGrow: 1 },
   back: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  backText: { color: '#0366ae', fontSize: 14, marginLeft: 2 },
+  backText: { color: C.accent, fontSize: 14, marginLeft: 2 },
   header: { alignItems: 'center', marginBottom: 36 },
-  logo: { fontSize: 36, fontWeight: '900', color: '#103a7a', letterSpacing: 2, marginBottom: 8 },
-  title: { fontSize: 24, fontWeight: '800', color: '#103a7a', marginBottom: 4 },
-  sub: { fontSize: 14, color: '#9fb8d4', textAlign: 'center' },
+  logo: { fontSize: 36, fontWeight: '900', color: C.text1, letterSpacing: 2, marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: '800', color: C.text1, marginBottom: 4 },
+  sub: { fontSize: 14, color: C.text2, textAlign: 'center' },
   form: {
-    backgroundColor: '#fff', borderRadius: 20,
-    borderWidth: 1, borderColor: '#b8ddf8', padding: 24, gap: 16,
-    shadowColor: '#0366ae', shadowOffset: { width: 0, height: 2 },
+    backgroundColor: C.bg2, borderRadius: 20,
+    borderWidth: 1, borderColor: C.border, padding: 24, gap: 16,
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   fieldWrap: { gap: 6 },
-  label: { fontSize: 12, fontWeight: '600', color: '#103a7a', textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: { fontSize: 12, fontWeight: '600', color: C.text1, textTransform: 'uppercase', letterSpacing: 0.5 },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: '#b8ddf8', borderRadius: 999,
-    backgroundColor: '#f7fbff', paddingHorizontal: 12, height: 44,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    backgroundColor: C.bgSecondary, paddingHorizontal: 12, height: 44,
   },
   inputIcon: { marginRight: 8 },
-  input: { flex: 1, fontSize: 14, color: '#103a7a' },
+  input: { flex: 1, fontSize: 14, color: C.text1 },
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca',
+    backgroundColor: C.dangerDim, borderWidth: 1, borderColor: C.border,
     borderRadius: 10, padding: 10,
   },
-  errorText: { fontSize: 12, color: '#dc2626', flex: 1 },
+  errorText: { fontSize: 12, color: C.danger, flex: 1 },
   submitBtn: {
-    backgroundColor: '#0366ae', borderRadius: 999,
+    backgroundColor: C.accent, borderRadius: 999,
     height: 48, alignItems: 'center', justifyContent: 'center', marginTop: 8,
   },
   submitDisabled: { opacity: 0.6 },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  submitText: { color: C.text1, fontSize: 16, fontWeight: '700' },
   successBox: { alignItems: 'center', gap: 12, paddingVertical: 16 },
-  successTitle: { fontSize: 20, fontWeight: '800', color: '#16a34a' },
-  successText: { fontSize: 14, color: '#9fb8d4', textAlign: 'center', lineHeight: 22 },
+  successTitle: { fontSize: 20, fontWeight: '800', color: C.success },
+  successText: { fontSize: 14, color: C.text2, textAlign: 'center', lineHeight: 22 },
   backBtn: {
-    backgroundColor: '#0366ae', borderRadius: 999,
+    backgroundColor: C.accent, borderRadius: 999,
     paddingHorizontal: 32, paddingVertical: 12, marginTop: 8,
   },
-  backBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  backBtnText: { color: C.text1, fontSize: 15, fontWeight: '700' },
 });

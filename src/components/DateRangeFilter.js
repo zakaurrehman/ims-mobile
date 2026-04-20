@@ -2,9 +2,11 @@
 // Supports: Year only | Year + Month | Custom start/end date range
 // Matches web's DateRangePicker + MonthSelect behavior
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform, ScrollView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import { radius, space } from '../theme/spacing';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -14,7 +16,7 @@ const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate(
 export default function DateRangeFilter({ onFilterChange, initialYear }) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(initialYear || currentYear);
-  const [month, setMonth] = useState(null); // null = all year
+  const [month, setMonth] = useState(null);
   const [mode, setMode] = useState('year'); // 'year' | 'month' | 'custom'
   const [startDate, setStartDate] = useState(new Date(currentYear, 0, 1));
   const [endDate, setEndDate] = useState(new Date(currentYear, 11, 31));
@@ -56,7 +58,7 @@ export default function DateRangeFilter({ onFilterChange, initialYear }) {
     emit({ md, m: null });
   };
 
-  const onDateChange = (which, event, date) => {
+  const onDateChange = (which, _event, date) => {
     if (Platform.OS === 'android') setShowPicker(null);
     if (!date) return;
     if (which === 'start') {
@@ -90,16 +92,20 @@ export default function DateRangeFilter({ onFilterChange, initialYear }) {
           {/* Year selector */}
           <View style={styles.yearRow}>
             <TouchableOpacity onPress={() => setYearAndEmit(-1)} style={styles.arrowBtn}>
-              <Ionicons name="chevron-back" size={18} color="#0366ae" />
+              <Feather name="chevron-left" size={18} color={colors.accent} />
             </TouchableOpacity>
             <Text style={styles.yearText}>{year}</Text>
             <TouchableOpacity onPress={() => setYearAndEmit(1)} style={styles.arrowBtn}>
-              <Ionicons name="chevron-forward" size={18} color="#0366ae" />
+              <Feather name="chevron-right" size={18} color={colors.accent} />
             </TouchableOpacity>
           </View>
 
           {/* Month chips */}
-          <View style={styles.monthsRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.monthsRow}
+          >
             {MONTHS.map((m, i) => (
               <TouchableOpacity
                 key={m}
@@ -109,18 +115,18 @@ export default function DateRangeFilter({ onFilterChange, initialYear }) {
                 <Text style={[styles.monthText, month === i && styles.monthTextActive]}>{m}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </>
       ) : (
         /* Custom date range */
         <View style={styles.customRow}>
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowPicker('start')}>
-            <Ionicons name="calendar-outline" size={14} color="#0366ae" />
+            <Feather name="calendar" size={14} color={colors.accent} />
             <Text style={styles.dateBtnText}>{fmtDate(startDate)}</Text>
           </TouchableOpacity>
           <Text style={styles.dateArrow}>→</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowPicker('end')}>
-            <Ionicons name="calendar-outline" size={14} color="#0366ae" />
+            <Feather name="calendar" size={14} color={colors.accent} />
             <Text style={styles.dateBtnText}>{fmtDate(endDate)}</Text>
           </TouchableOpacity>
         </View>
@@ -162,40 +168,137 @@ export default function DateRangeFilter({ onFilterChange, initialYear }) {
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e3f0fb', paddingBottom: 8 },
-  modeRow: { flexDirection: 'row', marginHorizontal: 12, marginTop: 8, gap: 8 },
+  root: {
+    backgroundColor: colors.bg0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border1,
+    paddingBottom: space.sm,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    marginHorizontal: space.md,
+    marginTop: space.sm,
+    gap: space.sm,
+  },
   modeBtn: {
-    flex: 1, paddingVertical: 6, borderRadius: 999,
-    backgroundColor: '#f0f8ff', borderWidth: 1, borderColor: '#b8ddf8', alignItems: 'center',
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bg3,
+    borderWidth: 1,
+    borderColor: colors.border1,
+    alignItems: 'center',
   },
-  modeBtnActive: { backgroundColor: '#0366ae', borderColor: '#0366ae' },
-  modeBtnText: { fontSize: 11, fontWeight: '600', color: '#0366ae' },
-  modeBtnTextActive: { color: '#fff' },
-  yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, gap: 16 },
-  arrowBtn: { padding: 6 },
-  yearText: { fontSize: 16, fontWeight: '700', color: '#103a7a', minWidth: 50, textAlign: 'center' },
-  monthsRow: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 12, marginTop: 6, gap: 6 },
+  modeBtnActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  modeBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text2,
+  },
+  modeBtnTextActive: {
+    color: '#fff',
+  },
+  yearRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.sm,
+    gap: space.lg,
+  },
+  arrowBtn: {
+    padding: 6,
+  },
+  yearText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text1,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  monthsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    gap: space.sm,
+  },
   monthBtn: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
-    backgroundColor: '#f0f8ff', borderWidth: 1, borderColor: '#b8ddf8',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bg3,
+    borderWidth: 1,
+    borderColor: colors.border1,
   },
-  monthBtnActive: { backgroundColor: '#0366ae', borderColor: '#0366ae' },
-  monthText: { fontSize: 10, fontWeight: '600', color: '#0366ae' },
-  monthTextActive: { color: '#fff' },
-  customRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginTop: 10, gap: 8 },
+  monthBtnActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  monthText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.text2,
+  },
+  monthTextActive: {
+    color: '#fff',
+  },
+  customRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: space.md,
+    marginTop: space.md,
+    gap: space.sm,
+  },
   dateBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#f0f8ff', borderWidth: 1, borderColor: '#b8ddf8',
-    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.bg3,
+    borderWidth: 1,
+    borderColor: colors.border1,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
   },
-  dateBtnText: { fontSize: 12, fontWeight: '600', color: '#0366ae' },
-  dateArrow: { fontSize: 16, color: '#9fb8d4' },
-  pickerModal: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  pickerInner: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  dateBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text1,
+  },
+  dateArrow: {
+    fontSize: 16,
+    color: colors.text3,
+  },
+  pickerModal: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: colors.overlay,
+  },
+  pickerInner: {
+    backgroundColor: colors.bg2,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+  },
   pickerHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e3f0fb',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: space.xl,
+    paddingVertical: space.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border1,
   },
-  pickerTitle: { fontSize: 15, fontWeight: '700', color: '#103a7a' },
-  pickerDone: { fontSize: 15, fontWeight: '700', color: '#0366ae' },
+  pickerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text1,
+  },
+  pickerDone: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.accent,
+  },
 });

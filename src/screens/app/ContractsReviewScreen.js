@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+// Contracts Review — matches web's contractsreview/page.js
+// Uses same data endpoints: contract.poInvoices[].pmnt for purchase value,
+// contract.expenses[] for expenses, contract.invoices[] → invoice docs for financials
+import { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, RefreshControl,
   TouchableOpacity, TextInput,
@@ -7,46 +10,61 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { UserAuth } from '../../contexts/AuthContext';
 import { loadData } from '../../shared/utils/firestore';
-import { formatCurrency, getName } from '../../shared/utils/helpers';
+import { formatCurrency, getName, safeDate } from '../../shared/utils/helpers';
 import AppHeader from '../../components/AppHeader';
 import Spinner from '../../components/Spinner';
-import YearPicker from '../../components/YearPicker';
+import DateRangeFilter from '../../components/DateRangeFilter';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 import { COLLECTIONS } from '../../constants/collections';
+import { getBottomPad } from '../../theme/spacing';
+import C from '../../theme/colors';
 
-// Purchase value = sum of productsData qty * unitPrc
+// Matches web's ContractsValue(contract, 'pmnt', valCur, euroToUSD)
+// No currency conversion — uses contract's native currency (mltTmp = 1)
 function calcPurchaseValue(contract) {
-  return (contract.productsData || []).reduce((sum, p) => {
-    return sum + (parseFloat(p.qnty) || 0) * (parseFloat(p.unitPrc) || 0);
-  }, 0);
+  return (contract.poInvoices || []).reduce((s, z) => s + (parseFloat(z.pmnt) || 0), 0);
 }
 
-// From linked invoices on the contract: sum totalAmount of final/only invoices
-function calcInvoiceValue(contract, invoiceMap) {
-  if (!contract.invoices?.length) return 0;
-  let total = 0;
-  for (const ref of contract.invoices) {
-    const inv = invoiceMap[ref.invoice];
-    if (!inv || inv.canceled) continue;
-    // Only count original invoice if no final exists for same invoice#
-    total += parseFloat(inv.totalAmount) || 0;
-  }
-  return total;
+// Matches web's TotalArrsExp — uses contract.expenses[] directly
+function calcExpenses(contract) {
+  return (contract.expenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
 }
 
-// Sum payments from linked invoices
-function calcPayments(contract, invoiceMap) {
-  if (!contract.invoices?.length) return 0;
-  let total = 0;
-  for (const ref of contract.invoices) {
-    const inv = invoiceMap[ref.invoice];
-    if (!inv || inv.canceled) continue;
-    for (const p of inv.payments || []) {
-      total += parseFloat(p.pmnt) || 0;
+// Matches web's Total() function — splits into totalInvoices (finalised) vs deviation (single standard)
+// Also computes payments and prepayment in a single pass
+function calcInvoiceTotals(contract, invoiceMap) {
+  const linkedInvs = (contract.invoices || [])
+    .map(r => invoiceMap[r.invoice])
+    .filter(Boolean);
+
+  let totalInvoices = 0;    // accumuLastInv  — final/confirmed invoice amounts
+  let deviation = 0;        // accumuDeviation — single standard invoice (pre-final)
+  let totalPrepayment = 0;
+  let payments = 0;
+
+  linkedInvs.forEach(inv => {
+    if (inv.canceled) return;
+    const amount = parseFloat(inv.totalAmount) || 0;
+    const prepay = parseFloat(inv.totalPrepayment) || 0;
+
+    // Web logic: only 1 invoice linked AND it's a standard type → deviation
+    if (linkedInvs.length === 1 && (inv.invType === '1111' || inv.invType === 'Invoice')) {
+      deviation += amount;
+    } else {
+      totalInvoices += amount;
     }
-  }
-  return total;
+    totalPrepayment += prepay;
+    (inv.payments || []).forEach(p => { payments += parseFloat(p.pmnt) || 0; });
+  });
+
+  const totalAll = totalInvoices + deviation;
+  const prepaidPer = totalAll > 0 ? (totalPrepayment / totalAll * 100) : 0;
+  const inDebt = totalAll - totalPrepayment;
+  const debtaftr = inDebt - payments;
+  const debtBlnc = totalAll - payments;
+
+  return { totalInvoices, deviation, totalPrepayment, prepaidPer, inDebt, payments, debtaftr, debtBlnc, totalAll };
 }
 
 export default function ContractsReviewScreen({ navigation }) {
@@ -56,10 +74,12 @@ export default function ContractsReviewScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [items, setItems] = useState([]);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const _cy = new Date().getFullYear();
+  const [dateRange, setDateRange] = useState({ start: `${_cy}-01-01`, end: `${_cy}-12-31` });
+  const dateSelect = dateRange;
   const [search, setSearch] = useState('');
-
-  const dateSelect = { start: `${year}-01-01`, end: `${year}-12-31` };
+  const [currencyMode, setCurrencyMode] = useState('EUR');
+  const DEFAULT_EUR_RATE = 1.1;
 
   const load = async () => {
     if (!uidCollection) return;
@@ -69,42 +89,22 @@ export default function ContractsReviewScreen({ navigation }) {
         loadData(uidCollection, COLLECTIONS.INVOICES, dateSelect),
       ]);
 
-      // Build invoice lookup by invoice# for financial calcs
+      // Build invoice lookup by invoice# — matches web's getInvoices logic
       const invoiceMap = {};
       for (const inv of invoices || []) {
         if (inv.invoice) invoiceMap[inv.invoice] = inv;
       }
 
-      // Also build contractId → expense totals map (from expenses linked via poSupplier)
-      const expenses = await loadData(uidCollection, COLLECTIONS.EXPENSES, dateSelect);
-      const expMap = {};
-      for (const exp of expenses || []) {
-        const cid = exp.poSupplier?.id;
-        if (cid) {
-          expMap[cid] = (expMap[cid] || 0) + (parseFloat(exp.amount) || 0);
-        }
-      }
-
       const enriched = (contracts || [])
+        .filter(c => !c.canceled)
         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
         .map(c => {
-          const purchaseValue = calcPurchaseValue(c);
-          const invoiceValue = calcInvoiceValue(c, invoiceMap);
-          const payments = calcPayments(c, invoiceMap);
-          const expensesTotal = expMap[c.id] || 0;
-          const profit = invoiceValue - purchaseValue - expensesTotal;
-          const debtBalance = invoiceValue - payments;
-          const currency = getName(settings, 'Currency', c.cur, 'cur') || c.cur || 'USD';
-          return {
-            ...c,
-            purchaseValue,
-            invoiceValue,
-            payments,
-            expensesTotal,
-            profit,
-            debtBalance,
-            currency,
-          };
+          const conValue  = calcPurchaseValue(c);
+          const expenses1 = calcExpenses(c);
+          const inv       = calcInvoiceTotals(c, invoiceMap);
+          const profit    = inv.totalAll - conValue - expenses1;
+          const currency  = getName(settings, 'Currency', c.cur, 'cur') || c.cur || 'USD';
+          return { ...c, conValue, expenses1, profit, currency, ...inv };
         });
 
       setItems(enriched);
@@ -112,19 +112,18 @@ export default function ContractsReviewScreen({ navigation }) {
     finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { load(); }, [uidCollection, year]);
+  useEffect(() => { load(); }, [uidCollection, dateRange]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
-  const filtered = search.trim()
-    ? items.filter(x => {
-        const q = search.toLowerCase();
-        return (
-          (x.order || '').toLowerCase().includes(q) ||
-          getName(settings, 'Supplier', x.supplier).toLowerCase().includes(q)
-        );
-      })
-    : items;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter(x =>
+      (x.order || '').toLowerCase().includes(q) ||
+      getName(settings, 'Supplier', x.supplier).toLowerCase().includes(q)
+    );
+  }, [items, search]);
 
   if (loading) return <Spinner />;
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -132,20 +131,35 @@ export default function ContractsReviewScreen({ navigation }) {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <AppHeader title="Contracts Review" navigation={navigation} showBack />
-      <YearPicker year={year} setYear={setYear} />
+      <DateRangeFilter
+        onFilterChange={({ startDate, endDate }) => setDateRange({ start: startDate, end: endDate })}
+        initialYear={_cy}
+      />
+
+      <View style={styles.currencyToggleRow}>
+        {['EUR', 'USD'].map(c => (
+          <TouchableOpacity
+            key={c}
+            style={[styles.currencyBtn, currencyMode === c && styles.currencyBtnActive]}
+            onPress={() => setCurrencyMode(c)}
+          >
+            <Text style={[styles.currencyBtnText, currencyMode === c && styles.currencyBtnTextActive]}>{c}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={16} color="#9fb8d4" style={{ marginRight: 8 }} />
+        <Ionicons name="search-outline" size={16} color={C.text2} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.search}
           placeholder="Search contracts..."
-          placeholderTextColor="#b8ddf8"
+          placeholderTextColor={C.text3}
           value={search}
           onChangeText={setSearch}
         />
         {search ? (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color="#9fb8d4" />
+            <Ionicons name="close-circle" size={16} color={C.text2} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -153,65 +167,103 @@ export default function ContractsReviewScreen({ navigation }) {
       <Text style={styles.count}>{filtered.length} contracts</Text>
 
       <FlatList
+        style={{ flex: 1 }}
         data={filtered}
         keyExtractor={(item, i) => item.id || String(i)}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: getBottomPad(insets) }]}
         windowSize={10}
         maxToRenderPerBatch={10}
         removeClippedSubviews={true}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0366ae" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
         ListEmptyComponent={<EmptyState icon="document-text-outline" title="No contracts found" subtitle="Try changing the year or search" />}
         renderItem={({ item }) => {
           const supplierName = getName(settings, 'Supplier', item.supplier);
-          const profitColor = item.profit >= 0 ? '#16a34a' : '#dc2626';
-          const debtColor = item.debtBalance > 0 ? '#dc2626' : '#16a34a';
-          const fmt = (n) => formatCurrency(n, item.currency);
+          const rate = currencyMode === 'USD' ? (item.euroToUSD || DEFAULT_EUR_RATE) : 1;
+          const displayCur = currencyMode === 'USD' ? 'USD' : item.currency;
+          const fmt = (n) => formatCurrency(n * rate, displayCur);
+          const profitColor = item.profit >= 0 ? C.success : C.danger;
 
           return (
             <View style={styles.card}>
               {/* Header */}
               <View style={styles.cardHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.poNum}>PO# {item.order || '—'}</Text>
                   <Text style={styles.supplier}>{supplierName}</Text>
                 </View>
                 <View style={styles.dateWrap}>
-                  <Text style={styles.dateText}>{item.date || '—'}</Text>
+                  <Text style={styles.dateText}>{safeDate(item.date) || '—'}</Text>
                   <Text style={styles.currency}>{item.currency}</Text>
                 </View>
               </View>
 
-              {/* Financial grid */}
-              <View style={styles.grid}>
-                <View style={styles.gridItem}>
-                  <Text style={styles.gridLabel}>Purchase</Text>
-                  <Text style={styles.gridValue}>{fmt(item.purchaseValue)}</Text>
+              {/* Row 1: Purchase | Invoice | Deviation */}
+              <View style={styles.metricRow}>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Purchase</Text>
+                  <Text style={styles.mValue}>{fmt(item.conValue)}</Text>
                 </View>
-                <View style={styles.gridItem}>
-                  <Text style={styles.gridLabel}>Invoice</Text>
-                  <Text style={styles.gridValue}>{fmt(item.invoiceValue)}</Text>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Invoice</Text>
+                  <Text style={styles.mValue}>{fmt(item.totalInvoices)}</Text>
                 </View>
-                <View style={styles.gridItem}>
-                  <Text style={styles.gridLabel}>Expenses</Text>
-                  <Text style={styles.gridValue}>{fmt(item.expensesTotal)}</Text>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Deviation</Text>
+                  <Text style={[styles.mValue, item.deviation > 0.01 && { color: C.warning }]}>
+                    {fmt(item.deviation)}
+                  </Text>
                 </View>
-                <View style={styles.gridItem}>
-                  <Text style={styles.gridLabel}>Payments</Text>
-                  <Text style={styles.gridValue}>{fmt(item.payments)}</Text>
+              </View>
+
+              {/* Row 2: Prepaid | Prepaid% | Initial Debt */}
+              <View style={styles.metricRow}>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Prepaid</Text>
+                  <Text style={styles.mValue}>{fmt(item.totalPrepayment)}</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Prepaid %</Text>
+                  <Text style={styles.mValue}>{item.prepaidPer.toFixed(1)}%</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Initial Debt</Text>
+                  <Text style={[styles.mValue, { color: item.inDebt > 0.01 ? C.danger : C.success }]}>
+                    {fmt(item.inDebt)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Row 3: Payments | Debt After Prepay | Debt Balance */}
+              <View style={styles.metricRow}>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Payments</Text>
+                  <Text style={[styles.mValue, { color: C.success }]}>{fmt(item.payments)}</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Debt After</Text>
+                  <Text style={[styles.mValue, { color: item.debtaftr > 0.01 ? C.danger : C.success }]}>
+                    {fmt(item.debtaftr)}
+                  </Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.mLabel}>Debt Balance</Text>
+                  <Text style={[styles.mValue, { color: item.debtBlnc > 0.01 ? C.danger : C.success }]}>
+                    {fmt(item.debtBlnc)}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.divider} />
 
-              {/* Profit + Debt */}
+              {/* Footer: Expenses + Profit */}
               <View style={styles.footerRow}>
                 <View style={styles.footerItem}>
-                  <Text style={styles.gridLabel}>Profit</Text>
-                  <Text style={[styles.footerValue, { color: profitColor }]}>{fmt(item.profit)}</Text>
+                  <Text style={styles.mLabel}>Expenses</Text>
+                  <Text style={styles.mValue}>{fmt(item.expenses1)}</Text>
                 </View>
                 <View style={styles.footerItem}>
-                  <Text style={styles.gridLabel}>Debt Balance</Text>
-                  <Text style={[styles.footerValue, { color: debtColor }]}>{fmt(item.debtBalance)}</Text>
+                  <Text style={styles.mLabel}>Profit</Text>
+                  <Text style={[styles.footerValue, { color: profitColor }]}>{fmt(item.profit)}</Text>
                 </View>
               </View>
             </View>
@@ -223,48 +275,49 @@ export default function ContractsReviewScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: 12, marginTop: 4, marginBottom: 4,
     paddingHorizontal: 14, height: 40,
-    backgroundColor: '#fff', borderRadius: 999,
-    borderWidth: 1, borderColor: '#b8ddf8',
+    backgroundColor: C.bg2, borderRadius: 999, borderWidth: 1, borderColor: C.border,
   },
-  search: { flex: 1, fontSize: 13, color: '#103a7a' },
-  count: { paddingHorizontal: 16, fontSize: 11, color: '#9fb8d4', marginBottom: 4 },
+  search: { flex: 1, fontSize: 13, color: C.text1 },
+  count: { paddingHorizontal: 16, fontSize: 11, color: C.text2, marginBottom: 4 },
   list: { padding: 12, gap: 10 },
   card: {
-    backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#b8ddf8', padding: 14,
+    backgroundColor: C.bg2, borderRadius: 14,
+    borderWidth: 1, borderColor: C.border, padding: 12,
   },
   cardHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'flex-start', marginBottom: 12,
+    alignItems: 'flex-start', marginBottom: 10,
   },
-  poNum: { fontSize: 13, fontWeight: '700', color: '#0366ae' },
-  supplier: { fontSize: 12, color: '#103a7a', marginTop: 2 },
+  poNum: { fontSize: 13, fontWeight: '700', color: C.accent },
+  supplier: { fontSize: 12, color: C.text1, marginTop: 2 },
   dateWrap: { alignItems: 'flex-end' },
-  dateText: { fontSize: 11, color: '#9fb8d4' },
-  currency: { fontSize: 10, fontWeight: '700', color: '#9fb8d4', marginTop: 2 },
-  grid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+  dateText: { fontSize: 11, color: C.text2 },
+  currency: { fontSize: 10, fontWeight: '700', color: C.text2, marginTop: 2 },
+  currencyToggleRow: { flexDirection: 'row', gap: 6, marginHorizontal: 12, marginBottom: 4 },
+  currencyBtn: {
+    paddingHorizontal: 14, paddingVertical: 5, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.bg2,
   },
-  gridItem: {
-    width: '47%', backgroundColor: '#f8fbff',
-    borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: '#e3f3ff',
+  currencyBtnActive: { backgroundColor: C.accent, borderColor: '#103a7a' },
+  currencyBtnText: { fontSize: 11, fontWeight: '700', color: C.text2 },
+  currencyBtnTextActive: { color: C.text1 },
+  metricRow: { flexDirection: 'row', gap: 5, marginBottom: 5 },
+  metric: {
+    flex: 1, backgroundColor: C.bg2, borderRadius: 8,
+    padding: 7, borderWidth: 1, borderColor: C.border,
   },
-  gridLabel: { fontSize: 9, fontWeight: '700', color: '#9fb8d4', textTransform: 'uppercase', marginBottom: 4 },
-  gridValue: { fontSize: 12, fontWeight: '700', color: '#103a7a' },
-  divider: { height: 1, backgroundColor: '#f0f8ff', marginVertical: 10 },
-  footerRow: { flexDirection: 'row', gap: 8 },
+  mLabel: { fontSize: 8, fontWeight: '700', color: C.text2, textTransform: 'uppercase', marginBottom: 3 },
+  mValue: { fontSize: 10, fontWeight: '700', color: C.text1 },
+  divider: { height: 1, backgroundColor: C.bgPrimary, marginVertical: 8 },
+  footerRow: { flexDirection: 'row', gap: 5 },
   footerItem: {
-    flex: 1, backgroundColor: '#f8fbff',
-    borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: '#e3f3ff',
+    flex: 1, backgroundColor: C.bg2, borderRadius: 8,
+    padding: 7, borderWidth: 1, borderColor: C.border,
   },
-  footerValue: { fontSize: 13, fontWeight: '800', marginTop: 4 },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 14, color: '#9fb8d4' },
+  footerValue: { fontSize: 13, fontWeight: '800', marginTop: 3 },
 });

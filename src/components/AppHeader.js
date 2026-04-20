@@ -1,19 +1,38 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import { type } from '../theme/typography';
+import { space } from '../theme/spacing';
 
-export default function AppHeader({ title, navigation, showBack = false }) {
+export default function AppHeader({
+  title,
+  navigation,
+  showBack = false,
+  rightActions,
+}) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
       <View style={styles.row}>
-        {showBack && (
-          <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#0366ae" />
+        {showBack ? (
+          <TouchableOpacity
+            onPress={() => navigation?.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Feather name="chevron-left" size={24} color={colors.text1} />
           </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtn} />
         )}
-        <Text style={styles.title}>{title}</Text>
+
+        <Text style={styles.title} numberOfLines={1}>{title}</Text>
+
+        <View style={styles.right}>
+          {rightActions}
+        </View>
       </View>
     </View>
   );
@@ -21,23 +40,33 @@ export default function AppHeader({ title, navigation, showBack = false }) {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#e3f3ff',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    backgroundColor: colors.bg0,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#b8ddf8',
+    borderBottomColor: colors.border1,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   backBtn: {
-    marginRight: 8,
-    padding: 4,
+    width: 44,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#103a7a',
+    ...type.heading,
+    flex: 1,
+    textAlign: 'center',
+  },
+  right: {
+    width: 44,
+    height: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: space.sm,
   },
 });

@@ -1,7 +1,10 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { colors } from '../theme/colors';
+import { radius } from '../theme/spacing';
 
 export default function Button({ title, onPress, variant = 'primary', loading = false, disabled = false, style }) {
   const isSecondary = variant === 'secondary';
+  const isDanger    = variant === 'danger';
 
   return (
     <TouchableOpacity
@@ -9,15 +12,19 @@ export default function Button({ title, onPress, variant = 'primary', loading = 
       disabled={disabled || loading}
       style={[
         styles.base,
-        isSecondary ? styles.secondary : styles.primary,
+        isSecondary && styles.secondary,
+        isDanger    && styles.danger,
+        !isSecondary && !isDanger && styles.primary,
         (disabled || loading) && styles.disabled,
         style,
       ]}
       activeOpacity={0.8}
     >
       {loading
-        ? <ActivityIndicator color={isSecondary ? '#0366ae' : '#fff'} size="small" />
-        : <Text style={[styles.text, isSecondary && styles.textSecondary]}>{title}</Text>
+        ? <ActivityIndicator color={isSecondary ? colors.text2 : '#fff'} size="small" />
+        : <Text style={[styles.text, isSecondary && styles.textSecondary, isDanger && styles.textDanger]}>
+            {title}
+          </Text>
       }
     </TouchableOpacity>
   );
@@ -25,23 +32,29 @@ export default function Button({ title, onPress, variant = 'primary', loading = 
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 24,
-    borderRadius: 999,
+    borderRadius: radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 100,
+    height: 44,
   },
   primary: {
-    backgroundColor: '#0366ae',
+    backgroundColor: colors.accent,
   },
   secondary: {
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#b8ddf8',
+    borderColor: colors.border2,
+  },
+  danger: {
+    backgroundColor: colors.dangerDim,
+    borderWidth: 1,
+    borderColor: colors.danger,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
   text: {
     color: '#fff',
@@ -49,6 +62,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   textSecondary: {
-    color: '#0366ae',
+    color: colors.text2,
+  },
+  textDanger: {
+    color: colors.danger,
   },
 });

@@ -48,4 +48,5 @@ export const ROUTES = {
   STOCKS_CONFIG:        'StocksConfig',
   USERS_MANAGEMENT:     'UsersManagement',
   INVENTORY_REVIEW:     'InventoryReview',
+  SETUP:                'Setup',
 };

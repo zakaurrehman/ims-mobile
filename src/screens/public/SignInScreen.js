@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserAuth } from '../../contexts/AuthContext';
 import Spinner from '../../components/Spinner';
 import { PUBLIC_ROUTES } from '../../constants/routes';
+import C from '../../theme/colors';
 
 export default function SignInScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -44,7 +45,7 @@ export default function SignInScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Back to home */}
         <TouchableOpacity style={styles.back} onPress={() => navigation.navigate(PUBLIC_ROUTES.HOME)}>
-          <Ionicons name="chevron-back" size={20} color="#0366ae" />
+          <Ionicons name="chevron-back" size={20} color={C.accent} />
           <Text style={styles.backText}>Home</Text>
         </TouchableOpacity>
 
@@ -61,11 +62,11 @@ export default function SignInScreen({ navigation }) {
           <View style={styles.fieldWrap}>
             <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrap}>
-              <Ionicons name="mail-outline" size={18} color="#9fb8d4" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={18} color={C.text2} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="you@example.com"
-                placeholderTextColor="#b8ddf8"
+                placeholderTextColor={C.text3}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -79,18 +80,18 @@ export default function SignInScreen({ navigation }) {
           <View style={styles.fieldWrap}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrap}>
-              <Ionicons name="lock-closed-outline" size={18} color="#9fb8d4" style={styles.inputIcon} />
+              <Ionicons name="lock-closed-outline" size={18} color={C.text2} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="••••••••"
-                placeholderTextColor="#b8ddf8"
+                placeholderTextColor={C.text3}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPw}
                 autoComplete="password"
               />
               <TouchableOpacity onPress={() => setShowPw((v) => !v)} style={styles.eyeBtn}>
-                <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9fb8d4" />
+                <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={C.text2} />
               </TouchableOpacity>
             </View>
           </View>
@@ -98,7 +99,7 @@ export default function SignInScreen({ navigation }) {
           {/* Error */}
           {err ? (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={16} color="#dc2626" />
+              <Ionicons name="alert-circle-outline" size={16} color={C.danger} />
               <Text style={styles.errorText}>{err.replace('Firebase: ', '').replace(/\(.*\)/, '').trim()}</Text>
             </View>
           ) : null}
@@ -129,55 +130,55 @@ export default function SignInScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
   scroll: { padding: 24, flexGrow: 1 },
   back: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  backText: { color: '#0366ae', fontSize: 14, marginLeft: 2 },
+  backText: { color: C.accent, fontSize: 14, marginLeft: 2 },
   header: { alignItems: 'center', marginBottom: 36 },
-  logo: { fontSize: 36, fontWeight: '900', color: '#103a7a', letterSpacing: 2, marginBottom: 8 },
-  title: { fontSize: 24, fontWeight: '800', color: '#103a7a', marginBottom: 4 },
-  sub: { fontSize: 14, color: '#9fb8d4' },
+  logo: { fontSize: 36, fontWeight: '900', color: C.text1, letterSpacing: 2, marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: '800', color: C.text1, marginBottom: 4 },
+  sub: { fontSize: 14, color: C.text2 },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: C.bg2,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#b8ddf8',
+    borderColor: C.border,
     padding: 24,
     gap: 16,
-    shadowColor: '#0366ae',
+    shadowColor: C.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   fieldWrap: { gap: 6 },
-  label: { fontSize: 12, fontWeight: '600', color: '#103a7a', textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: { fontSize: 12, fontWeight: '600', color: C.text1, textTransform: 'uppercase', letterSpacing: 0.5 },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#b8ddf8',
+    borderColor: C.border,
     borderRadius: 999,
-    backgroundColor: '#f7fbff',
+    backgroundColor: C.bgSecondary,
     paddingHorizontal: 12,
     height: 44,
   },
   inputIcon: { marginRight: 8 },
-  input: { flex: 1, fontSize: 14, color: '#103a7a' },
+  input: { flex: 1, fontSize: 14, color: C.text1 },
   eyeBtn: { padding: 4 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fef2f2',
+    backgroundColor: C.dangerDim,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: C.border,
     borderRadius: 10,
     padding: 10,
   },
-  errorText: { fontSize: 12, color: '#dc2626', flex: 1 },
+  errorText: { fontSize: 12, color: C.danger, flex: 1 },
   submitBtn: {
-    backgroundColor: '#0366ae',
+    backgroundColor: C.accent,
     borderRadius: 999,
     height: 48,
     alignItems: 'center',
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   submitDisabled: { opacity: 0.6 },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  submitText: { color: C.text1, fontSize: 16, fontWeight: '700' },
   forgotBtn: { alignItems: 'center', paddingVertical: 4 },
-  forgotText: { fontSize: 13, color: '#0366ae', fontWeight: '600' },
+  forgotText: { fontSize: 13, color: C.accent, fontWeight: '600' },
 });

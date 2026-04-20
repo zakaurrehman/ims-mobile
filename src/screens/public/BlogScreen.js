@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import C from '../../theme/colors';
 
 const POSTS = [
   { title: 'How IMS Simplifies International Shipments', date: 'Jan 2026', tag: 'Guide' },
@@ -15,7 +16,7 @@ export default function BlogScreen({ navigation }) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Ionicons name="chevron-back" size={22} color="#0366ae" />
+          <Ionicons name="chevron-back" size={22} color={C.accent} />
         </TouchableOpacity>
         <Text style={styles.title}>Blog</Text>
       </View>
@@ -37,26 +38,26 @@ export default function BlogScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
+  root: { flex: 1, backgroundColor: C.bg2 },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: '#e3f3ff', borderBottomWidth: 1, borderBottomColor: '#b8ddf8',
+    backgroundColor: C.bgTertiary, borderBottomWidth: 1, borderBottomColor: C.border,
   },
   back: { padding: 4 },
-  title: { fontSize: 18, fontWeight: '700', color: '#103a7a' },
+  title: { fontSize: 18, fontWeight: '700', color: C.text1 },
   scroll: { padding: 16, gap: 14 },
   card: {
-    backgroundColor: '#f7fbff', borderRadius: 16,
-    borderWidth: 1, borderColor: '#b8ddf8', padding: 18,
+    backgroundColor: C.bgSecondary, borderRadius: 16,
+    borderWidth: 1, borderColor: C.border, padding: 18,
   },
   tagWrap: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   tag: {
-    fontSize: 11, fontWeight: '700', color: '#0366ae',
-    backgroundColor: '#ebf2fc', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
+    fontSize: 11, fontWeight: '700', color: C.accent,
+    backgroundColor: C.bgTertiary, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
     textTransform: 'uppercase',
   },
-  date: { fontSize: 12, color: '#9fb8d4' },
-  postTitle: { fontSize: 15, fontWeight: '700', color: '#103a7a', lineHeight: 22, marginBottom: 10 },
-  readMore: { fontSize: 12, color: '#0366ae', fontWeight: '600' },
+  date: { fontSize: 12, color: C.text2 },
+  postTitle: { fontSize: 15, fontWeight: '700', color: C.text1, lineHeight: 22, marginBottom: 10 },
+  readMore: { fontSize: 12, color: C.accent, fontWeight: '600' },
 });

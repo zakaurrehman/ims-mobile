@@ -17,7 +17,7 @@ export default function App() {
             <OfflineBanner />
             <RootNavigator />
             <Toast />
-            <StatusBar style="dark" />
+            <StatusBar style="light" backgroundColor="#080C12" />
           </AuthContextProvider>
         </ToastProvider>
       </SafeAreaProvider>

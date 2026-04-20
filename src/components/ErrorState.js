@@ -1,15 +1,19 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import { radius } from '../theme/spacing';
 
 export default function ErrorState({ message = 'Something went wrong', onRetry }) {
   return (
     <View style={styles.wrap}>
-      <Ionicons name="cloud-offline-outline" size={48} color="#fca5a5" />
+      <View style={styles.iconWrap}>
+        <Feather name="wifi-off" size={28} color={colors.danger} />
+      </View>
       <Text style={styles.title}>Failed to load</Text>
       <Text style={styles.message}>{message}</Text>
       {onRetry && (
         <TouchableOpacity style={styles.btn} onPress={onRetry}>
-          <Ionicons name="refresh-outline" size={16} color="#fff" />
+          <Feather name="refresh-cw" size={15} color="#fff" />
           <Text style={styles.btnText}>Try Again</Text>
         </TouchableOpacity>
       )}
@@ -18,12 +22,51 @@ export default function ErrorState({ message = 'Something went wrong', onRetry }
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 32 },
-  title: { fontSize: 16, fontWeight: '700', color: '#dc2626', marginTop: 14, textAlign: 'center' },
-  message: { fontSize: 13, color: '#9fb8d4', marginTop: 6, textAlign: 'center' },
-  btn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#0366ae', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, marginTop: 20,
+  wrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+    gap: 8,
   },
-  btnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: colors.dangerDim,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.danger,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 13,
+    color: colors.text2,
+    marginTop: 4,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  btn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: radius.xl,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  btnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
 });

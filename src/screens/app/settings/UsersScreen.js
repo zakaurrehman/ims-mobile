@@ -12,12 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserAuth } from '../../../contexts/AuthContext';
 import { loadDataSettings, saveDataSettings } from '../../../shared/utils/firestore';
 import { SETTINGS_DOCS } from '../../../constants/collections';
+import { getBottomPad } from '../../../theme/spacing';
 import { usePermission } from '../../../shared/hooks/usePermission';
 import { useToast } from '../../../contexts/ToastContext';
 import { hapticSuccess, hapticWarning } from '../../../shared/utils/haptics';
 import AppHeader from '../../../components/AppHeader';
 import Spinner from '../../../components/Spinner';
 import ErrorState from '../../../components/ErrorState';
+import C from '../../../theme/colors';
 
 const TITLES = ['Admin', 'Manager', 'User', 'Viewer'];
 
@@ -152,14 +154,14 @@ export default function UsersScreen({ navigation }) {
             value={!item.disabled}
             onValueChange={() => handleToggleDisabled(item)}
             trackColor={{ false: '#fca5a5', true: '#86efac' }}
-            thumbColor={item.disabled ? '#dc2626' : '#16a34a'}
+            thumbColor={item.disabled ? C.danger : C.success}
             style={styles.toggle}
           />
           <TouchableOpacity style={styles.editBtn} onPress={() => setEditUser({ ...item })}>
-            <Ionicons name="pencil-outline" size={16} color="#0366ae" />
+            <Ionicons name="pencil-outline" size={16} color={C.accent} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
-            <Ionicons name="trash-outline" size={16} color="#dc2626" />
+            <Ionicons name="trash-outline" size={16} color={C.danger} />
           </TouchableOpacity>
         </View>
       )}
@@ -172,9 +174,9 @@ export default function UsersScreen({ navigation }) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <AppHeader title="User Management" navigation={navigation} showBack />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <Ionicons name="people-outline" size={48} color="#b8ddf8" />
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#103a7a', marginTop: 16, textAlign: 'center' }}>User Management</Text>
-        <Text style={{ fontSize: 13, color: '#9fb8d4', marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
+        <Ionicons name="people-outline" size={48} color={C.text2} />
+        <Text style={{ fontSize: 16, fontWeight: '700', color: C.text1, marginTop: 16, textAlign: 'center' }}>User Management</Text>
+        <Text style={{ fontSize: 13, color: C.text2, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
           User management requires server-side access and is only available on the web app.{'\n\n'}Please use the web portal to manage users.
         </Text>
       </View>
@@ -192,12 +194,12 @@ export default function UsersScreen({ navigation }) {
         removeClippedSubviews={true}
         keyExtractor={(item, i) => item.id || String(i)}
         renderItem={renderUser}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: getBottomPad(insets) }]}
         ListEmptyComponent={
           <Text style={styles.empty}>No users found</Text>
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0366ae" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />
         }
       />
 
@@ -205,10 +207,11 @@ export default function UsersScreen({ navigation }) {
       <Modal visible={!!editUser} animationType="slide" transparent>
         <View style={styles.overlay}>
           <View style={styles.modal}>
+            <View style={styles.handle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit User</Text>
               <TouchableOpacity onPress={() => setEditUser(null)}>
-                <Ionicons name="close" size={22} color="#103a7a" />
+                <Ionicons name="close" size={22} color={C.text1} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalBody}>
@@ -221,7 +224,7 @@ export default function UsersScreen({ navigation }) {
                 value={editUser?.displayName || ''}
                 onChangeText={v => setEditUser(p => ({ ...p, displayName: v }))}
                 placeholder="Full name"
-                placeholderTextColor="#b8ddf8"
+                placeholderTextColor={C.text3}
               />
 
               <Text style={styles.fieldLabel}>Role / Title</Text>
@@ -255,55 +258,56 @@ export default function UsersScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
-  list: { padding: 16, gap: 12, paddingBottom: 32 },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
+  list: { padding: 16, gap: 12 },
   card: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#b8ddf8',
+    backgroundColor: C.bg2, borderRadius: 14, borderWidth: 1, borderColor: C.border,
     padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 12,
   },
-  cardDisabled: { opacity: 0.6, borderColor: '#fca5a5' },
+  cardDisabled: { opacity: 0.6, borderColor: C.danger },
   avatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#0366ae',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: C.accent,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarDisabled: { backgroundColor: '#9ca3af' },
-  avatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  avatarDisabled: { backgroundColor: C.text2 },
+  avatarText: { color: C.text1, fontSize: 18, fontWeight: '800' },
   info: { flex: 1, gap: 2 },
-  name: { fontSize: 14, fontWeight: '700', color: '#103a7a' },
-  email: { fontSize: 12, color: '#9fb8d4' },
+  name: { fontSize: 14, fontWeight: '700', color: C.text1 },
+  email: { fontSize: 12, color: C.text2 },
   tagRow: { flexDirection: 'row', marginTop: 4, gap: 6 },
-  titleTag: { backgroundColor: '#ebf2fc', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  titleTagText: { fontSize: 10, fontWeight: '700', color: '#0366ae' },
-  disabledTag: { backgroundColor: '#fef2f2', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  disabledTagText: { fontSize: 10, fontWeight: '700', color: '#dc2626' },
-  meta: { fontSize: 10, color: '#b8ddf8', marginTop: 2 },
+  titleTag: { backgroundColor: C.bgTertiary, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  titleTagText: { fontSize: 10, fontWeight: '700', color: C.accent },
+  disabledTag: { backgroundColor: C.dangerDim, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  disabledTagText: { fontSize: 10, fontWeight: '700', color: C.danger },
+  meta: { fontSize: 10, color: C.text2, marginTop: 2 },
   rowActions: { alignItems: 'center', gap: 6 },
   toggle: { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] },
-  editBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#ebf2fc', justifyContent: 'center', alignItems: 'center' },
-  deleteBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#fef2f2', justifyContent: 'center', alignItems: 'center' },
-  empty: { textAlign: 'center', color: '#9fb8d4', marginTop: 40, fontSize: 14 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%' },
+  editBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.bgTertiary, justifyContent: 'center', alignItems: 'center' },
+  deleteBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.dangerDim, justifyContent: 'center', alignItems: 'center' },
+  empty: { textAlign: 'center', color: C.text2, marginTop: 40, fontSize: 14 },
+  handle: { width: 36, height: 4, backgroundColor: C.border2, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 2 },
+  overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
+  modal: { backgroundColor: C.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%' },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, borderBottomWidth: 1, borderBottomColor: '#e3f0fb',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#103a7a' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: C.text1 },
   modalBody: { padding: 20, gap: 12, paddingBottom: 32 },
-  fieldLabel: { fontSize: 11, fontWeight: '700', color: '#103a7a', textTransform: 'uppercase' },
-  emailDisplay: { fontSize: 14, color: '#9fb8d4', marginBottom: 4 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', color: C.text1, textTransform: 'uppercase' },
+  emailDisplay: { fontSize: 14, color: C.text2, marginBottom: 4 },
   input: {
-    backgroundColor: '#f7fbff', borderWidth: 1, borderColor: '#b8ddf8',
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#103a7a',
+    backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: C.text1,
   },
   titlesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   titleBtn: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
-    borderWidth: 1, borderColor: '#b8ddf8', backgroundColor: '#f0f8ff',
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.bgPrimary,
   },
-  titleBtnActive: { backgroundColor: '#0366ae', borderColor: '#0366ae' },
-  titleBtnText: { fontSize: 12, fontWeight: '600', color: '#0366ae' },
-  titleBtnTextActive: { color: '#fff' },
-  saveBtn: { backgroundColor: '#0366ae', borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  titleBtnActive: { backgroundColor: C.accent, borderColor: C.accent },
+  titleBtnText: { fontSize: 12, fontWeight: '600', color: C.accent },
+  titleBtnTextActive: { color: C.text1 },
+  saveBtn: { backgroundColor: C.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  saveBtnText: { color: C.text1, fontSize: 15, fontWeight: '700' },
 });

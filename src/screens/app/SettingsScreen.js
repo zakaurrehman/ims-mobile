@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserAuth } from '../../contexts/AuthContext';
 import AppHeader from '../../components/AppHeader';
 import { ROUTES } from '../../constants/routes';
+import { getBottomPad } from '../../theme/spacing';
+import C from '../../theme/colors';
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -25,7 +27,19 @@ export default function SettingsScreen({ navigation }) {
           label: 'Company Details',
           sub: 'Name, address, language',
           screen: ROUTES.COMPANY_DETAILS,
-          color: '#0366ae',
+          color: C.accent,
+        },
+      ],
+    },
+    {
+      title: 'Lookup Tables',
+      items: [
+        {
+          icon: 'list-outline',
+          label: 'Setup',
+          sub: 'Picklists: POD, POL, payment terms…',
+          screen: ROUTES.SETUP,
+          color: C.info,
         },
       ],
     },
@@ -38,7 +52,7 @@ export default function SettingsScreen({ navigation }) {
           sub: 'Manage supplier list',
           badge: supplierCount || null,
           screen: ROUTES.SUPPLIER_MANAGEMENT,
-          color: '#7c3aed',
+          color: C.purple,
         },
         {
           icon: 'briefcase-outline',
@@ -46,7 +60,7 @@ export default function SettingsScreen({ navigation }) {
           sub: 'Manage client list',
           badge: clientCount || null,
           screen: ROUTES.CLIENT_MANAGEMENT,
-          color: '#0891b2',
+          color: C.info,
         },
       ],
     },
@@ -59,7 +73,7 @@ export default function SettingsScreen({ navigation }) {
           sub: 'SWIFT, IBAN, currencies',
           badge: bankCount || null,
           screen: ROUTES.BANK_ACCOUNTS,
-          color: '#16a34a',
+          color: C.success,
         },
       ],
     },
@@ -72,7 +86,7 @@ export default function SettingsScreen({ navigation }) {
           sub: 'Configure stock locations',
           badge: stockCount || null,
           screen: ROUTES.STOCKS_CONFIG,
-          color: '#d97706',
+          color: C.warning,
         },
       ],
     },
@@ -84,7 +98,7 @@ export default function SettingsScreen({ navigation }) {
           label: 'User Management',
           sub: 'Roles and access control',
           screen: ROUTES.USERS_MANAGEMENT,
-          color: '#dc2626',
+          color: C.danger,
           adminOnly: true,
         },
       ],
@@ -94,7 +108,7 @@ export default function SettingsScreen({ navigation }) {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <AppHeader title="Settings" navigation={navigation} showBack />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getBottomPad(insets) }]}>
         {SECTIONS.map((section, si) => (
           <View key={si} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -112,8 +126,8 @@ export default function SettingsScreen({ navigation }) {
                     }
                   }}
                 >
-                  <View style={[styles.iconWrap, { backgroundColor: (item.color || '#0366ae') + '18' }]}>
-                    <Ionicons name={item.icon} size={20} color={item.color || '#0366ae'} />
+                  <View style={[styles.iconWrap, { backgroundColor: (item.color || C.accent) + '18' }]}>
+                    <Ionicons name={item.icon} size={20} color={item.color || C.accent} />
                   </View>
                   <View style={styles.itemText}>
                     <Text style={styles.itemLabel}>{item.label}</Text>
@@ -124,7 +138,7 @@ export default function SettingsScreen({ navigation }) {
                       <Text style={styles.badgeText}>{item.badge}</Text>
                     </View>
                   ) : null}
-                  <Ionicons name="chevron-forward" size={16} color="#9fb8d4" />
+                  <Ionicons name="chevron-forward" size={16} color={C.text2} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -136,29 +150,29 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f0f8ff' },
-  scroll: { padding: 16, gap: 20, paddingBottom: 32 },
+  root: { flex: 1, backgroundColor: C.bgPrimary },
+  scroll: { padding: 16, gap: 20 },
   section: { gap: 8 },
   sectionTitle: {
-    fontSize: 11, fontWeight: '700', color: '#9fb8d4',
+    fontSize: 11, fontWeight: '700', color: C.text2,
     textTransform: 'uppercase', paddingHorizontal: 4,
   },
   sectionCard: {
-    backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1, borderColor: '#b8ddf8', overflow: 'hidden',
+    backgroundColor: C.bg2, borderRadius: 16,
+    borderWidth: 1, borderColor: C.border, overflow: 'hidden',
   },
   item: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  itemBorder: { borderBottomWidth: 1, borderBottomColor: '#f0f8ff' },
+  itemBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
   iconWrap: {
     width: 40, height: 40, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center',
   },
   itemText: { flex: 1, gap: 1 },
-  itemLabel: { fontSize: 14, fontWeight: '600', color: '#103a7a' },
-  itemSub: { fontSize: 11, color: '#9fb8d4' },
+  itemLabel: { fontSize: 14, fontWeight: '600', color: C.text1 },
+  itemSub: { fontSize: 11, color: C.text2 },
   badge: {
-    backgroundColor: '#0366ae', borderRadius: 999,
+    backgroundColor: C.accent, borderRadius: 999,
     paddingHorizontal: 8, paddingVertical: 2, marginRight: 4,
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  badgeText: { fontSize: 11, fontWeight: '700', color: C.text1 },
 });

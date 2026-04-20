@@ -1,7 +1,6 @@
-// Bottom tab navigation for authenticated users
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import TabBar from '../components/ui/TabBar';
 
 // Bottom tab screens
 import DashboardScreen from '../screens/app/DashboardScreen';
@@ -36,40 +35,24 @@ import BankAccountsScreen from '../screens/app/settings/BankAccountsScreen';
 import StocksConfigScreen from '../screens/app/settings/StocksConfigScreen';
 import UsersScreen from '../screens/app/settings/UsersScreen';
 import InventoryReviewScreen from '../screens/app/InventoryReviewScreen';
+import SetupScreen from '../screens/app/settings/SetupScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const TAB_COLOR = '#0366ae';
-const TAB_INACTIVE = '#9fb8d4';
-const TAB_BG = '#e3f3ff';
+import { colors } from '../theme/colors';
+
+const darkScreen = {
+  headerShown: false,
+  contentStyle: { backgroundColor: colors.bg0 },
+  animation: 'slide_from_right',
+};
 
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: TAB_COLOR,
-        tabBarInactiveTintColor: TAB_INACTIVE,
-        tabBarStyle: {
-          backgroundColor: TAB_BG,
-          borderTopColor: '#b8ddf8',
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
-        tabBarIcon: ({ color, size }) => {
-          const icons = {
-            Dashboard: 'grid-outline',
-            Contracts: 'document-text-outline',
-            Invoices: 'receipt-outline',
-            Expenses: 'wallet-outline',
-            More: 'ellipsis-horizontal-outline',
-          };
-          return <Ionicons name={icons[route.name] || 'apps-outline'} size={size} color={color} />;
-        },
-      })}
+      tabBar={(props) => <TabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Contracts" component={ContractsScreen} />
@@ -82,9 +65,8 @@ function MainTabs() {
 
 export default function AppTabs() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={darkScreen}>
       <Stack.Screen name="Main" component={MainTabs} />
-      {/* All secondary screens accessible from More menu */}
       <Stack.Screen name="Accounting" component={AccountingScreen} />
       <Stack.Screen name="Cashflow" component={CashflowScreen} />
       <Stack.Screen name="Stocks" component={StocksScreen} />
@@ -110,6 +92,7 @@ export default function AppTabs() {
       <Stack.Screen name="StocksConfig" component={StocksConfigScreen} />
       <Stack.Screen name="UsersManagement" component={UsersScreen} />
       <Stack.Screen name="InventoryReview" component={InventoryReviewScreen} />
+      <Stack.Screen name="Setup" component={SetupScreen} />
     </Stack.Navigator>
   );
 }

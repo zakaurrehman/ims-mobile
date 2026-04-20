@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Text, StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 const BANNER_HEIGHT = 40;
 
@@ -30,7 +31,7 @@ export default function OfflineBanner() {
       style={[styles.banner, { transform: [{ translateY: slideAnim }] }]}
       pointerEvents="none"
     >
-      <Ionicons name="cloud-offline-outline" size={15} color="#fff" />
+      <Feather name="wifi-off" size={14} color="#fff" />
       <Text style={styles.text}>No internet — showing cached data</Text>
     </Animated.View>
   );
@@ -39,14 +40,20 @@ export default function OfflineBanner() {
 const styles = StyleSheet.create({
   banner: {
     position: 'absolute',
-    top: 0, left: 0, right: 0,
+    top: 0,
+    left: 0,
+    right: 0,
     zIndex: 9999,
     height: BANNER_HEIGHT,
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.danger,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  text: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  text: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
 });
